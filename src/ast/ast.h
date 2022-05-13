@@ -17,7 +17,7 @@ class DoubleExprNode;
 class CharExprNode;
 class BooleanExprNode;
 class ConstDeclStmtNode;
-class TypeNode;
+// class TypeNode;
 class VariableDeclNode;
 class BinaryExprNode;
 class CallExprNode;
@@ -120,43 +120,49 @@ private:
     bool value;
 };
 
-class TypeNode: public StmtNode {
-public: 
-    enum Type {
-        TYPE_INT,
-        TYPE_REAL,
-        TYPE_CHAR,
-        TYPE_BOOL
-    };
-    TypeNode(Type type): type(type) {}
-    llvm::Value* codeGen() override;
-    std::string jsonGen() override;
-private:
-    Type type;
+// class TypeNode: public StmtNode {
+// public: 
+//     enum Type {
+//         TYPE_INT,
+//         TYPE_REAL,
+//         TYPE_CHAR,
+//         TYPE_BOOL
+//     };
+//     TypeNode(Type type): type(type) {}
+//     llvm::Value* codeGen() override;
+//     std::string jsonGen() override;
+// private:
+//     Type type;
+// };
+enum NodeType {
+    TYPE_INT,
+    TYPE_REAL,
+    TYPE_CHAR,
+    TYPE_BOOL
 };
 
 class ConstDeclNode: public StmtNode {
 public: 
-    ConstDeclNode(Identifier *id, ConstExprNode *value, TypeNode *type): name(id), value(value), type(type) {}
+    ConstDeclNode(Identifier *id, ConstExprNode *value, NodeType type): name(id), value(value), type(type) {}
     llvm::Value* codeGen() override;
     std::string jsonGen() override;
 private:
     Identifier *name;
     ConstExprNode *value;
-    TypeNode *type;
+    NodeType type;
 };
 
 class VariableDeclNode: public StmtNode {
 public:
-    VariableDeclNode(std::vector<Identifier*> *nameList, TypeNode *type): nameList(nameList), type(type) {}
+    VariableDeclNode(std::vector<Identifier*> *nameList, NodeType type): nameList(nameList), type(type) {}
     llvm::Value* codeGen() override;
     std::string jsonGen() override;
 private:
     std::vector<Identifier*> *nameList;
-    TypeNode *type;
+    NodeType type;
 };
 
-class BinaryExprNode: public StmtNode {
+class BinaryExprNode: public ExprNode {
 public: 
     enum BinaryOperator {
         OP_PLUS,
