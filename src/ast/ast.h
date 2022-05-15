@@ -16,7 +16,7 @@ class IntegerExprNode;
 class DoubleExprNode;
 class CharExprNode;
 class BooleanExprNode;
-class ConstDeclStmtNode;
+class ConstDeclNode;
 // class TypeNode;
 class VariableDeclNode;
 class BinaryExprNode;
@@ -46,8 +46,8 @@ class Identifier: public ExprNode {
 public:
     Identifier(std::string name): name(name) {}
     llvm::Value* codeGen() override;
+    llvm::Value* addrGen() override;
     std::string jsonGen() override;
- private:
     std::string name;
 };
 

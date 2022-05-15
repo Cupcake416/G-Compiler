@@ -1,72 +1,80 @@
 #include "code_gen.h"
 
-llvm::Function* codeGen::getCurFunction()
-{
-    return funStack.top();
+llvm::AllocaInst* getAlloc(llvm::BasicBlock *BB, llvm::StringRef VarName, llvm::Type* type) {
+  llvm::IRBuilder<> tmp(BB);
+  return tmp.CreateAlloca(type, nullptr, VarName);
 }
 
-void codeGen::pushFunction(llvm::Function* func)
+void* exitError(const std::string s)
 {
-    funStack.push(func);
+    fprintf(stderr, s);
+    return nullptr;
 }
 
-void codeGen::popFunction()
+llvm::Function* CodeGen::getCurFunction()
 {
-    funStack.pop();
+    return funcStack.top();
 }
 
-llvm::Value* codeGen::findValue(const std::string & name)
+void CodeGen::pushFunction(llvm::Function* func)
 {
-    llvm::Value * result = funStack.top()->getValueSymbolTable()->lookup(name);
-    if (result != nullptr) {
-        return result;
-    }
-    result = module->getGlobalVariable(name, true);
-    if (result == nullptr) {
-        cout<<"[ERROR]Undeclared variable: " << name <<endl;
-    }
-    return result;
+    funcStack.push(func);
 }
 
-llvm::Function* codeGen::createPrintf()
+void CodeGen::popFunction()
 {
-    std::vector<llvm::Type*> arg_types;
-    arg_types.push_back(builder.getInt8PtrTy());
-    auto printf_type = llvm::FunctionType::get(builder.getInt32Ty(), llvm::makeArrayRef(arg_types), true);
-    auto func = llvm::Function::Create(printf_type, llvm::Function::ExternalLinkage, llvm::Twine("printf"), this->module);
-    func->setCallingConv(llvm::CallingConv::C);
-    return func;
+    funcStack.pop();
 }
 
-llvm::Function* codeGen::createScanf()
-{
-    auto scanf_type = llvm::FunctionType::get(builder.getInt32Ty(), true);
-    auto func = llvm::Function::Create(scanf_type, llvm::Function::ExternalLinkage, llvm::Twine("scanf"), this->module);
-    func->setCallingConv(llvm::CallingConv::C);
-    return func;
-}
-
-void codeGen::generate(Node* root)
+void CodeGen::generate(Node* root)
 {
     root->codeGen();
     this->module->print(llvm::outs(), nullptr);
 }
 
-codeGen::codeGen(/* args */)
+CodeGen::CodeGen(/* args */)
 {
     this->module = new llvm::Module("main", context);
-    this->printf = this->createPrintf();
-    this->scanf = this->createScanf();
+    
+    std::vector<llvm::Type*> arg_types;
+    arg_types.push_back(builder.getInt8PtrTy());
+    auto printf_type = llvm::FunctionType::get(builder.getInt32Ty(), llvm::makeArrayRef(arg_types), true);
+    auto func = llvm::Function::Create(printf_type, llvm::Function::ExternalLinkage, llvm::Twine("printf"), this->module);
+    func->setCallingConv(llvm::CallingConv::C);
+    this->printf = func;
+
+    auto scanf_type = llvm::FunctionType::get(builder.getInt32Ty(), true);
+    func = llvm::Function::Create(scanf_type, llvm::Function::ExternalLinkage, llvm::Twine("scanf"), this->module);
+    func->setCallingConv(llvm::CallingConv::C);
+    this->scanf = func;
+    
+    this->symStack = new SymStack();
+    symStack.create(); // global variable namespace
 }
 
-codeGen::~codeGen()
+CodeGen::~CodeGen()
 {
     delete this->module;
 }
 
 llvm::Value* Identifier::codeGen()
 {
-    // TODO
+    SymItem* res = generator->symStack->find(*this);
+    if(res == nullptr)
+        return exitError("Undefined Variable\n");
+    if(res->isConstant)
+        return res->addr;
+    return builder.CreateLoad(res->ty, res->addr);
+}
+
+llvm::Value* Identifier::addrGen()
+{
+    SymItem* res = generator->symStack->find(*this);
+    if(res == nullptr)
+        return exitError("Undefined Variable\n");
+    if(res->isConstant)
+        return exitError("Constants can't be assigned\n");
+    return res->addr;
 }
 
 llvm::Value* IntegerExprNode::codeGen()
@@ -85,17 +93,58 @@ llvm::Value* CharExprNode::codeGen()
 
 llvm::Value* BooleanExprNode::codeGen()
 {
-    return llvm::ConstantInt::get(context, llvm::APInt(8, value));
+    return llvm::ConstantInt::get(context, llvm::APInt(8, value ? 1 : 0));
 }
 
 llvm::Value* ConstDeclNode::codeGen()
 {
-    // TODO
+    if(generator->symStack->findCur(*name))
+        return exitError("Variable Redefinition\n");
+    llvm::Type* ty;
+    switch(type)
+    {
+    case TYPE_INT:
+        ty = llvm::Type::getInt32Ty(context);
+        generator->symStack->add(id, ty, 0, 1, llvm::ConstantInt::get(context, llvm::APInt(32, value->i)));
+        break;
+    case TYPE_REAL:
+        ty = llvm::Type::getFloatTy(context);
+        generator->symStack->add(id, ty, 0, 1, llvm::ConstantFP::get(context, llvm::APFloat(value->d)));
+        break;
+    case TYPE_CHAR:
+        ty = llvm::Type::getInt8Ty(context);
+        generator->symStack->add(id, ty, 0, 1, llvm::ConstantInt::get(context, llvm::APInt(8, value->c)));
+        break;
+    default:
+        ty = llvm::Type::getInt8Ty(context);
+        generator->symStack->add(id, ty, 0, 1, llvm::ConstantInt::get(context, llvm::APInt(8, value->b ? 1 : 0)));
+        break;
+    }
 }
 
 llvm::Value* VariableDeclNode::codeGen()
 {
-    // TODO
+    llvm::Type* ty;
+    switch(type)
+    {
+    case TYPE_INT:
+        ty = llvm::Type::getInt32Ty(context);
+        break;
+    case TYPE_REAL:
+        ty = llvm::Type::getFloatTy(context);
+        break;
+    default:
+        ty = llvm::Type::getInt8Ty(context);
+        break;
+    }
+    for(int i = 0; i < nameList->size(); i++)
+    {
+        Identifier id = *(*nameList)[i];
+        if(generator->symStack->findCur(id))
+            return exitError("Variable Redefinition\n");
+        generator->symStack->add(id, ty, 0, 0, getAlloc(generator->getCurFunction()->getEntryBlock(), id.name, ty));
+    }
+    // TODO : ARRAY
 }
 
 llvm::Value* BinaryExprNode::codeGen()
@@ -159,9 +208,9 @@ llvm::Value* CallExprNode::codeGen()
 {
     llvm::Function* func = generator->module->getFunction(callee.name);
     if(func == nullptr)
-        return fprintf(stderr, "Function not defined\n"), nullptr;
+        return exitError("Function not defined\n");
     if (func->arg_size() != args->size())
-        return fprintf(stderr, "Arguments mismatch\n"), nullptr;
+        return exitError("Arguments mismatch\n");
 
     std::vector<llvm::Value *> argsV;
     for (int i = 0; i < args->size(); i++)
@@ -174,7 +223,8 @@ llvm::Value* CallExprNode::codeGen()
 
 llvm::Value* AssignStmtNode::codeGen()
 {
-    llvm::Value* l = generator->findValue(lhs->name);
+    // TODO
+    SymItem* l = generator->findSymbol(lhs);
     // TODO: l may be array type
     llvm::Value* r = rhs->codeGen();
     return builder.CreateStore(r, l);
@@ -201,9 +251,11 @@ llvm::Value* IfStmtNode::codeGen()
 }
 llvm::Value* CompoundStmtNode::codeGen()
 {
+    generator->symStack->create();
     for(int i = 0; i < stmtList->size(); i++)
     {
         (*stmtList)[i]->codeGen();
     }
+    generator->symStack->remove();
     return nullptr;
 }
