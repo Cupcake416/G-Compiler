@@ -42,13 +42,18 @@ class StmtNode: public Node {
 
 };
 
+//  For variable/function, only 'name' needed
+// 解析表达式时，下标由index输入，如 A[i] = 0;
+// 解析定义时，长度由len输入，如 int A[10];
 class Identifier: public ExprNode {
 public:
-    Identifier(std::string name): name(name) {}
+    Identifier(std::string name, ExprNode* index = nullptr, int len = -1): name(name), index(index), len(len) {}
     llvm::Value* codeGen() override;
     llvm::Value* addrGen() override;
     std::string jsonGen() override;
     std::string name;
+    ExprNode* index;
+    int len;
 };
 
 class ConstExprNode: public ExprNode {

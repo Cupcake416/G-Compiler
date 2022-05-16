@@ -49,7 +49,7 @@ CodeGen::CodeGen(/* args */)
     this->scanf = func;
     
     this->symStack = new SymStack();
-    symStack.create(); // global variable namespace
+    // symStack.create(); // global variable namespace
 }
 
 CodeGen::~CodeGen()
@@ -59,21 +59,38 @@ CodeGen::~CodeGen()
 
 llvm::Value* Identifier::codeGen()
 {
-    SymItem* res = generator->symStack->find(*this);
+    SymItem* res = generator->symStack->find(this->name);
     if(res == nullptr)
         return exitError("Undefined Variable\n");
     if(res->isConstant)
         return res->addr;
+    if(res->isArray)
+    {
+        llvm::Value* val = index->codeGen();
+        std::vector<llvm::Value*> indexVec;
+        indexVec.push_back(builder.getInt32(0));
+        indexVec.push_back(val);
+        llvm::Value* varPtr = builder.CreateInBoundsGEP(res->addr, llvm::ArrayRef<llvm::Value*>(indexVec));
+        return builder.CreateLoad(res->ty, varPtr);
+    }
     return builder.CreateLoad(res->ty, res->addr);
 }
 
 llvm::Value* Identifier::addrGen()
 {
-    SymItem* res = generator->symStack->find(*this);
+    SymItem* res = generator->symStack->find(this->name);
     if(res == nullptr)
         return exitError("Undefined Variable\n");
     if(res->isConstant)
         return exitError("Constants can't be assigned\n");
+    if(res->isArray)
+    {
+        llvm::Value* val = index->codeGen();
+        std::vector<llvm::Value*> indexVec;
+        indexVec.push_back(builder.getInt32(0));
+        indexVec.push_back(val);
+        return builder.CreateInBoundsGEP(res->addr, llvm::ArrayRef<llvm::Value*>(indexVec));
+    }
     return res->addr;
 }
 
@@ -98,26 +115,28 @@ llvm::Value* BooleanExprNode::codeGen()
 
 llvm::Value* ConstDeclNode::codeGen()
 {
-    if(generator->symStack->findCur(*name))
+    if(name->len != -1)
+        return exitError("Const Array is not supported\n");
+    if(generator->symStack->findCur(name->name))
         return exitError("Variable Redefinition\n");
     llvm::Type* ty;
     switch(type)
     {
     case TYPE_INT:
         ty = llvm::Type::getInt32Ty(context);
-        generator->symStack->add(id, ty, 0, 1, llvm::ConstantInt::get(context, llvm::APInt(32, value->i)));
+        generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantInt::get(context, llvm::APInt(32, value->i)));
         break;
     case TYPE_REAL:
         ty = llvm::Type::getFloatTy(context);
-        generator->symStack->add(id, ty, 0, 1, llvm::ConstantFP::get(context, llvm::APFloat(value->d)));
+        generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantFP::get(context, llvm::APFloat(value->d)));
         break;
     case TYPE_CHAR:
         ty = llvm::Type::getInt8Ty(context);
-        generator->symStack->add(id, ty, 0, 1, llvm::ConstantInt::get(context, llvm::APInt(8, value->c)));
+        generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantInt::get(context, llvm::APInt(8, value->c)));
         break;
     default:
         ty = llvm::Type::getInt8Ty(context);
-        generator->symStack->add(id, ty, 0, 1, llvm::ConstantInt::get(context, llvm::APInt(8, value->b ? 1 : 0)));
+        generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantInt::get(context, llvm::APInt(8, value->b ? 1 : 0)));
         break;
     }
 }
@@ -139,12 +158,12 @@ llvm::Value* VariableDeclNode::codeGen()
     }
     for(int i = 0; i < nameList->size(); i++)
     {
-        Identifier id = *(*nameList)[i];
-        if(generator->symStack->findCur(id))
+        Identifier* id = (*nameList)[i];
+        if(generator->symStack->findCur(id->name))
             return exitError("Variable Redefinition\n");
-        generator->symStack->add(id, ty, 0, 0, getAlloc(generator->getCurFunction()->getEntryBlock(), id.name, ty));
+        generator->symStack->add(id->name, ty, 0, 0, id->len == -1 ? 0 : id->len,
+            getAlloc(generator->getCurFunction()->getEntryBlock(), id.name, id->len == -1 ? ty : llvm::ArrayType::get(ty, id->len)));
     }
-    // TODO : ARRAY
 }
 
 llvm::Value* BinaryExprNode::codeGen()
@@ -223,9 +242,7 @@ llvm::Value* CallExprNode::codeGen()
 
 llvm::Value* AssignStmtNode::codeGen()
 {
-    // TODO
-    SymItem* l = generator->findSymbol(lhs);
-    // TODO: l may be array type
+    llvm::Value* l = lhs->addrGen();
     llvm::Value* r = rhs->codeGen();
     return builder.CreateStore(r, l);
 }

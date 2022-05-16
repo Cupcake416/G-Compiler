@@ -10,23 +10,25 @@ public:
     llvm::Type* ty;
     bool isArray;
     bool isConstant;
+    int size;
+    // For variable / function, size = 0
     llvm::Value* addr;
     // For a constant, 'addr' stores its value because it's not allocated
 }
 
 class SymMap {
 public:
-    SymItem* find(Identifier name);
-    void add(Identifier name, llvm::Type* ty, bool isArray, bool isConstant, llvm::Value* addr);
+    SymItem* find(std::string name);
+    void add(std::string name, llvm::Type* ty, bool isArray, bool isConstant, int size, llvm::Value* addr);
 private:
-    std::map<Identifier, SymItem*> mp;
+    std::map<std::string, SymItem*> mp;
 }
 
 class SymStack {
 public:
-    SymItem* find(Identifier name);
-    SymItem* findCur(Identifier name);
-    void add(Identifier name, llvm::Type* ty, bool isArray, bool isConstant, llvm::Value* addr);
+    SymItem* find(std::string name);
+    SymItem* findCur(std::string name);
+    void add(std::string name, llvm::Type* ty, bool isArray, bool isConstant, int size, llvm::Value* addr);
     void create();
     void remove();
     ~SymStack();
@@ -34,12 +36,12 @@ private:
     std::vector<SymMap*> mapStack;
 }
 
-void SymStack::add(Identifier name, llvm::Type* ty, bool isArray, bool isConstant, llvm::Value* addr)
+void SymStack::add(std::string name, llvm::Type* ty, bool isArray, bool isConstant, int size, llvm::Value* addr)
 {
-    mapStack.back()->add(name, ty, isArray, isConstant, addr);
+    mapStack.back()->add(name, ty, isArray, isConstant, size, addr);
 }
 
-SymItem* SymStack::find(Identifier name)
+SymItem* SymStack::find(std::string name)
 {
     for(int i = mapStack.size() - 1; i >= 0; i--)
     {
@@ -49,7 +51,7 @@ SymItem* SymStack::find(Identifier name)
     return nullptr;
 }
 
-SymItem* SymStack::findCur(Identifier name)
+SymItem* SymStack::findCur(std::string name)
 {
     return mapStack.back()->find(name);
 }
@@ -70,12 +72,12 @@ SymStack::~SymStack()
         delete mapStack[i];
 }
 
-void SymMap::add(Identifier name, llvm::Type* ty, bool isArray, bool isConstant, llvm::Value* addr)
+void SymMap::add(std::string name, llvm::Type* ty, bool isArray, bool isConstant, int size, llvm::Value* addr)
 {
-    mp[name] = new SymItem(ty, isArray, isConstant, addr);
+    mp[name] = new SymItem(ty, isArray, isConstant, size, addr);
 }
 
-SymItem* SymMap::find(Identifier name)
+SymItem* SymMap::find(std::string name)
 {
     if(!mp.count(name)) return nullptr;
     return mp[name];
