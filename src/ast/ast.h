@@ -1,4 +1,4 @@
-
+#pragma once
 #include <iostream>
 #include <string>
 #include <vector>
@@ -24,11 +24,12 @@ class BinaryExprNode;
 class CallExprNode;
 class AssignStmtNode;
 class IfStmtNode;
+class ReturnNode;
 class CompoundStmtNode;
 
 class Node {
 public: 
-    virtual ~Node() {}
+    // virtual ~Node() {}
     virtual llvm::Value* codeGen() = 0;
     virtual std::string jsonGen() {
         return "";
@@ -52,7 +53,7 @@ class Identifier: public ExprNode {
 public:
     Identifier(std::string name, ExprNode* index = nullptr, int len = -1): name(name), index(index), len(len) {}
     llvm::Value* codeGen() override;
-    llvm::Value* addrGen() override;
+    llvm::Value* addrGen();
     std::string jsonGen() override;
     std::string name;
     ExprNode* index;
@@ -68,7 +69,6 @@ public:
         bool b;
     };
     virtual Value getValue() = 0;
-    llvm::Value* codeGen() override;
     std::string jsonGen() override;
 };
 
@@ -128,20 +128,6 @@ private:
     bool value;
 };
 
-// class TypeNode: public StmtNode {
-// public: 
-//     enum Type {
-//         TYPE_INT,
-//         TYPE_REAL,
-//         TYPE_CHAR,
-//         TYPE_BOOL
-//     };
-//     TypeNode(Type type): type(type) {}
-//     llvm::Value* codeGen() override;
-//     std::string jsonGen() override;
-// private:
-//     Type type;
-// };
 enum NodeType {
     TYPE_INT,
     TYPE_REAL,
@@ -180,15 +166,15 @@ private:
 
 class FuncDecNode: public StmtNode {
 public:
-    FuncDecNode(Identifier* name, NodeType type, std::vector<std::pair<Nodetype, Identifier*> > *argList, CompoundStmtNode* body): name(name), type(type), argList(argList), body(body) {}
+    FuncDecNode(Identifier* name, FuncType type, std::vector<std::pair<NodeType, Identifier*> > *argList, CompoundStmtNode* body): name(name), type(type), argList(argList), body(body) {}
     llvm::Value* codeGen() override;
     std::string jsonGen() override;
 private:
     Identifier* name;
     FuncType type;  // return type
-    std::vector<std::pair<Nodetype, Identifier*> > *argList; // set to null if no args
+    std::vector<std::pair<NodeType, Identifier*> > *argList; // set to null if no args
     CompoundStmtNode* body;
-}
+};
 
 class BinaryExprNode: public ExprNode {
 public: 
@@ -225,6 +211,15 @@ public:
 private:
     Identifier callee;
     std::vector<ExprNode*> *args;
+};
+
+class ReturnNode: public StmtNode {
+public:
+    ReturnNode(ExprNode* res): res(res) {}
+    llvm::Value* codeGen() override;
+    std::string jsonGen() override;
+private:
+    ExprNode* res;
 };
 
 class AssignStmtNode: public StmtNode {

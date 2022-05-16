@@ -29,14 +29,14 @@
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Target/TargetMachine.h>
 #include "../ast/ast.h"
-#include "symStack.h"
+#include "SymStack.h"
 
 using namespace std;
 
 static llvm::LLVMContext context;
 static llvm::IRBuilder<> builder(context);
 
-class CodeGen {
+class Generator {
 public:
     llvm::Module *module;
     llvm::Function *printf, *scanf;
@@ -47,10 +47,8 @@ public:
     void pushFunction(llvm::Function* func);
     void popFunction();
     void generate(Node *root);
-    codeGen(/* args */);
-    ~codeGen();
+    Generator();
+    ~Generator();
 };
-
-CodeGen *generator;
 
 #endif
