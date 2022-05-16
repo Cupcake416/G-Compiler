@@ -19,6 +19,7 @@ class BooleanExprNode;
 class ConstDeclNode;
 // class TypeNode;
 class VariableDeclNode;
+class FuncDecNode;
 class BinaryExprNode;
 class CallExprNode;
 class AssignStmtNode;
@@ -43,8 +44,10 @@ class StmtNode: public Node {
 };
 
 //  For variable/function, only 'name' needed
+//  For arrays,
 // 解析表达式时，下标由index输入，如 A[i] = 0;
 // 解析定义时，长度由len输入，如 int A[10];
+// 作为函数参数定义时，请将len设为0，如 void f(int A[]) {...}
 class Identifier: public ExprNode {
 public:
     Identifier(std::string name, ExprNode* index = nullptr, int len = -1): name(name), index(index), len(len) {}
@@ -146,6 +149,14 @@ enum NodeType {
     TYPE_BOOL
 };
 
+enum FuncType {
+    FUNC_INT,
+    FUNC_REAL,
+    FUNC_CHAR,
+    FUNC_BOOL,
+    FUNC_VOID
+};
+
 class ConstDeclNode: public StmtNode {
 public: 
     ConstDeclNode(Identifier *id, ConstExprNode *value, NodeType type): name(id), value(value), type(type) {}
@@ -166,6 +177,18 @@ private:
     std::vector<Identifier*> *nameList;
     NodeType type;
 };
+
+class FuncDecNode: public StmtNode {
+public:
+    FuncDecNode(Identifier* name, NodeType type, std::vector<std::pair<Nodetype, Identifier*> > *argList, CompoundStmtNode* body): name(name), type(type), argList(argList), body(body) {}
+    llvm::Value* codeGen() override;
+    std::string jsonGen() override;
+private:
+    Identifier* name;
+    FuncType type;  // return type
+    std::vector<std::pair<Nodetype, Identifier*> > *argList; // set to null if no args
+    CompoundStmtNode* body;
+}
 
 class BinaryExprNode: public ExprNode {
 public: 

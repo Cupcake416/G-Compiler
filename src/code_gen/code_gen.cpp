@@ -62,6 +62,8 @@ llvm::Value* Identifier::codeGen()
     SymItem* res = generator->symStack->find(this->name);
     if(res == nullptr)
         return exitError("Undefined Variable\n");
+    if(res->addr == nullptr)
+        res->addr = generator->funcStack.top()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
         return res->addr;
     if(res->isArray)
@@ -81,6 +83,8 @@ llvm::Value* Identifier::addrGen()
     SymItem* res = generator->symStack->find(this->name);
     if(res == nullptr)
         return exitError("Undefined Variable\n");
+    if(res->addr == nullptr)
+        res->addr = generator->funcStack.top()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
         return exitError("Constants can't be assigned\n");
     if(res->isArray)
@@ -164,6 +168,49 @@ llvm::Value* VariableDeclNode::codeGen()
         generator->symStack->add(id->name, ty, 0, 0, id->len == -1 ? 0 : id->len,
             getAlloc(generator->getCurFunction()->getEntryBlock(), id.name, id->len == -1 ? ty : llvm::ArrayType::get(ty, id->len)));
     }
+}
+
+llvm::Value* FuncDecNode::codeGen()
+{
+    std::vector<llvm::Type*> argTypeVec;
+    std::vector<std::string> argNameVec;
+    if (argList != nullptr) {
+        for (int i = 0; i < argList->size(); i++) {
+            bool isArr = (*argList)[i].second->len == 0;
+            llvm::Type* ty;
+            switch((*argList)[i].first)
+            {
+            case TYPE_INT:
+                ty = isArr ? llvm::Type::getInt32PtrTy(context) : llvm::Type::getInt32Ty(context);
+                break;
+            case TYPE_REAL:
+                ty = isArr ? llvm::Type::getFloatPtrTy(context) : llvm::Type::getFloatTy(context);
+                break;
+            default:
+                ty = isArr ? llvm::Type::getInt8PtrTy(context) : llvm::Type::getInt8Ty(context);
+                break;
+            }
+            argTypeVec.push_back(ty);
+            argNameVec.push_back((*argList)[i].second->name);
+        }
+    }
+    llvm::Type* retType = type == FUNC_INT ? llvm::Type::getInt32Ty(context) :
+                          type == FUNC_REAL ? llvm::Type::getFloatTy(context) :
+                          type == FUNC_VOID ? llvm::Type::getVoidTy(context) : llvm::Type::getInt8Ty(context);
+    llvm::FunctionType* funcType = llvm::FunctionType::get(retType, argTypeVec, false);
+    llvm::Function* func = llvm::Function::Create(funcType, llvm::GlobalValue::ExternalLinkage, name->name, generator->module);
+    generator->pushFunction(func);
+    llvm::BasicBlock* BB = llvm::BasicBlock::Create(context, "FuncEntry", function);
+    builder.SetInsertPoint(BB);
+    if(argList != nullptr) {  
+        int i = 0;
+        for (auto &Arg : function->args()) {
+            Arg.setName(argNameVec[i++]);
+        }
+    }
+    body->codeGen();
+    generator->popFunction(func);
+    return func;
 }
 
 llvm::Value* BinaryExprNode::codeGen()
@@ -266,6 +313,7 @@ llvm::Value* IfStmtNode::codeGen()
     builder.SetInsertPoint(mergeBB);    
     return br;
 }
+
 llvm::Value* CompoundStmtNode::codeGen()
 {
     generator->symStack->create();

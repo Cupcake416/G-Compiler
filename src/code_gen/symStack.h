@@ -14,6 +14,7 @@ public:
     // For variable / function, size = 0
     llvm::Value* addr;
     // For a constant, 'addr' stores its value because it's not allocated
+    // For function params, 'addr' set to null: have to search them in llvm symbol table
 }
 
 class SymMap {
