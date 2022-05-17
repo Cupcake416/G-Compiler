@@ -269,7 +269,7 @@ private:
 
 class WhileStmtNode: public StmtNode {
 public:
-    WhileStmtNode(ExprNode *condition, StmtNode *staments): conditon(condition), staments(staments) {}
+    WhileStmtNode(ExprNode *condition, StmtNode *staments): condition(condition), staments(staments) {}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
 private:
