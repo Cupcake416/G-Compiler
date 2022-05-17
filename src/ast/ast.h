@@ -25,13 +25,14 @@ class CallExprNode;
 class AssignStmtNode;
 class IfStmtNode;
 class ReturnNode;
+class WhileStmtNode;
 class CompoundStmtNode;
 
 class Node {
 public: 
     // virtual ~Node() {}
     virtual llvm::Value* codeGen() = 0;
-    virtual std::string jsonGen() {
+    virtual std::string dotGen() {
         return "";
     };
 };
@@ -56,7 +57,7 @@ public:
     Identifier(std::string name, ExprNode* index = nullptr, int len = -1): name(name), index(index), len(len) {}
     llvm::Value* codeGen() override;
     llvm::Value* addrGen();
-    std::string jsonGen() override;
+    std::string dotGen() override;
     std::string name;
     ExprNode* index;
     int len;
@@ -71,7 +72,7 @@ public:
         bool b;
     };
     virtual Value getValue() = 0;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 };
 
 class IntegerExprNode: public ConstExprNode {
@@ -83,7 +84,7 @@ public:
         return v;
     }
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     int value;
 };
@@ -97,7 +98,7 @@ public:
         return v;
     }
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     double value;
 };
@@ -111,7 +112,7 @@ public:
         return v;
     }
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     char value;
 };
@@ -125,7 +126,7 @@ public:
         return v;
     }
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     bool value;
 };
@@ -135,7 +136,7 @@ class StringNode: public ExprNode {
 public: 
     StringNode(std::string str): str(str) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     std::string str;
 };
@@ -159,7 +160,7 @@ class ConstDeclNode: public StmtNode {
 public: 
     ConstDeclNode(Identifier *id, ConstExprNode *value, NodeType type): name(id), value(value), type(type) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     Identifier *name;
     ConstExprNode *value;
@@ -170,7 +171,7 @@ class VariableDeclNode: public StmtNode {
 public:
     VariableDeclNode(std::vector<Identifier*> *nameList, NodeType type): nameList(nameList), type(type) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     std::vector<Identifier*> *nameList;
     NodeType type;
@@ -180,7 +181,7 @@ class FuncDecNode: public StmtNode {
 public:
     FuncDecNode(Identifier* name, FuncType type, std::vector<std::pair<NodeType, Identifier*> > *argList, CompoundStmtNode* body): name(name), type(type), argList(argList), body(body) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     Identifier* name;
     FuncType type;  // return type
@@ -207,7 +208,7 @@ public:
     };
     BinaryExprNode(BinaryOperator op, ExprNode* lhs, ExprNode* rhs): op(op), lhs(lhs), rhs(rhs) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     std::vector<std::string> opName{"+", "-", "*", "/", ">=", ">", "<", "<=", "==", "!=", "||", "%", "&&"};
     BinaryOperator op;
@@ -219,7 +220,7 @@ class CallExprNode: public ExprNode {
 public:
     CallExprNode(Identifier* callee, std::vector<ExprNode*> *args): callee(callee), args(args) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     Identifier* callee;
     std::vector<ExprNode*> *args;
@@ -231,7 +232,7 @@ class ScanNode: public StmtNode {
 public:
     ScanNode(std::vector<Identifier*> *args): args(args) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     std::vector<Identifier*> *args;
 };
@@ -240,7 +241,7 @@ class ReturnNode: public StmtNode {
 public:
     ReturnNode(ExprNode* res): res(res) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     ExprNode* res;
 };
@@ -249,7 +250,7 @@ class AssignStmtNode: public StmtNode {
 public:
     AssignStmtNode(Identifier *lhs, ExprNode *rhs): lhs(lhs), rhs(rhs) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     Identifier *lhs;
     ExprNode *rhs;
@@ -259,18 +260,28 @@ class IfStmtNode: public StmtNode {
 public:
     IfStmtNode(ExprNode *condition, StmtNode *thenStmt, StmtNode *elseStmt): condition(condition), thenStmt(thenStmt), elseStmt(elseStmt) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     ExprNode *condition;
     StmtNode *thenStmt;
     StmtNode *elseStmt;
 };
 
+class WhileStmtNode: public StmtNode {
+public:
+    WhileStmtNode(ExprNode *condition, StmtNode *staments): condition(condition), staments(staments) {}
+    llvm::Value* codeGen() override;
+    std::string dotGen() override;
+private:
+    ExprNode *condition;
+    StmtNode *staments;
+}
+
 class CompoundStmtNode : public StmtNode {
 public:
     CompoundStmtNode(std::vector<StmtNode*> *stmtList) : stmtList(stmtList) {}
     llvm::Value* codeGen() override;
-    std::string jsonGen() override;
+    std::string dotGen() override;
 private:
     std::vector<StmtNode*> *stmtList;
 };
