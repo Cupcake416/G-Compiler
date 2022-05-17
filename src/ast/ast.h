@@ -36,11 +36,13 @@ public:
     };
 };
 
-class ExprNode: public Node {
+class StmtNode: public Node {
 
 };
 
-class StmtNode: public Node {
+// expr也可以看做stmt，1+1; 是合法语句
+// 这样方便函数与过程的统一调用
+class ExprNode: public StmtNode {
 
 };
 
@@ -128,6 +130,16 @@ private:
     bool value;
 };
 
+// only used as constants in 'print' like print("Value: ", n);
+class StringNode: public ExprNode {
+public: 
+    StringNode(std::string str): str(str) {}
+    llvm::Value* codeGen() override;
+    std::string jsonGen() override;
+private:
+    std::string str;
+};
+
 enum NodeType {
     TYPE_INT,
     TYPE_REAL,
@@ -205,12 +217,23 @@ private:
 
 class CallExprNode: public ExprNode {
 public:
-    CallExprNode(Identifier callee, std::vector<ExprNode*> *args): callee(callee), args(args) {}
+    CallExprNode(Identifier* callee, std::vector<ExprNode*> *args): callee(callee), args(args) {}
     llvm::Value* codeGen() override;
     std::string jsonGen() override;
 private:
-    Identifier callee;
+    Identifier* callee;
     std::vector<ExprNode*> *args;
+};
+
+// scan单独做一类，因为参数必须是变量/字符数组
+// print按照CallExprNode调用即可
+class ScanNode: public StmtNode {
+public:
+    ScanNode(std::vector<Identifier*> *args): args(args) {}
+    llvm::Value* codeGen() override;
+    std::string jsonGen() override;
+private:
+    std::vector<Identifier*> *args;
 };
 
 class ReturnNode: public StmtNode {

@@ -2,6 +2,8 @@
 
 Generator *generator;
 
+IntegerExprNode* ZERO = new IntegerExprNode(0);
+
 llvm::AllocaInst* getAlloc(llvm::BasicBlock *BB, llvm::StringRef VarName, llvm::Type* type) {
   llvm::IRBuilder<> tmp(BB);
   return tmp.CreateAlloca(type, nullptr, VarName);
@@ -91,7 +93,7 @@ llvm::Value* Identifier::addrGen()
         return exitError("Constants can't be assigned");
     if(res->isArray)
     {
-        llvm::Value* val = index->codeGen();
+        llvm::Value* val = index == nullptr ? ZERO->codeGen() : index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
         indexVec.push_back(val);
@@ -117,6 +119,11 @@ llvm::Value* CharExprNode::codeGen()
 llvm::Value* BooleanExprNode::codeGen()
 {
     return llvm::ConstantInt::get(context, llvm::APInt(8, value ? 1 : 0));
+}
+
+llvm::Value* StringNode::codeGen()
+{
+    return llvm::ConstantDataArray::getString(context, str);
 }
 
 llvm::Value* ReturnNode::codeGen()
@@ -148,8 +155,8 @@ llvm::Value* ConstDeclNode::codeGen()
         generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantInt::get(context, llvm::APInt(8, value->getValue().c)));
         break;
     default:
-        ty = llvm::Type::getInt8Ty(context);
-        generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantInt::get(context, llvm::APInt(8, value->getValue().b ? 1 : 0)));
+        ty = llvm::Type::getInt1Ty(context);
+        generator->symStack->add(name->name, ty, 0, 1, 0, llvm::ConstantInt::get(context, llvm::APInt(1, value->getValue().b ? 1 : 0)));
         break;
     }
     return nullptr;
@@ -166,8 +173,11 @@ llvm::Value* VariableDeclNode::codeGen()
     case TYPE_REAL:
         ty = llvm::Type::getFloatTy(context);
         break;
-    default:
+    case TYPE_CHAR:
         ty = llvm::Type::getInt8Ty(context);
+        break;
+    default:
+        ty = llvm::Type::getInt1Ty(context);
         break;
     }
     for(int i = 0; i < nameList->size(); i++)
@@ -183,6 +193,9 @@ llvm::Value* VariableDeclNode::codeGen()
 
 llvm::Value* FuncDecNode::codeGen()
 {
+    llvm::Function *func = generator->module->getFunction(name->name);
+    if (func == nullptr && name->name != "main" || name->name == "scan" || name->name == "print")
+        return exitError("Function redefinition"); 
     std::vector<llvm::Type*> argTypeVec;
     std::vector<std::string> argNameVec;
     if (argList != nullptr) {
@@ -197,6 +210,9 @@ llvm::Value* FuncDecNode::codeGen()
             case TYPE_REAL:
                 if(isArr) ty = llvm::Type::getFloatPtrTy(context); else ty = llvm::Type::getFloatTy(context);
                 break;
+            case TYPE_BOOL:
+                if(isArr) ty = llvm::Type::getInt1PtrTy(context); else ty = llvm::Type::getInt1Ty(context);
+                break;
             default:
                 if(isArr) ty = llvm::Type::getInt8PtrTy(context); else ty = llvm::Type::getInt8Ty(context);
                 break;
@@ -207,9 +223,10 @@ llvm::Value* FuncDecNode::codeGen()
     }
     llvm::Type* retType = type == FUNC_INT ? llvm::Type::getInt32Ty(context) :
                           type == FUNC_REAL ? llvm::Type::getFloatTy(context) :
-                          type == FUNC_VOID ? llvm::Type::getVoidTy(context) : llvm::Type::getInt8Ty(context);
+                          type == FUNC_VOID ? llvm::Type::getVoidTy(context) : 
+                          type == FUNC_CHAR ? llvm::Type::getInt8Ty(context) : llvm::Type::getInt1Ty(context);
     llvm::FunctionType* funcType = llvm::FunctionType::get(retType, argTypeVec, false);
-    llvm::Function* func = llvm::Function::Create(funcType, llvm::GlobalValue::ExternalLinkage, name->name, generator->module);
+    func = llvm::Function::Create(funcType, llvm::GlobalValue::ExternalLinkage, name->name, generator->module);
     generator->pushFunction(func);
     llvm::BasicBlock* BB = llvm::BasicBlock::Create(context, "FuncEntry", func);
     builder.SetInsertPoint(BB);
@@ -219,7 +236,8 @@ llvm::Value* FuncDecNode::codeGen()
             Arg.setName(argNameVec[i++]);
         }
     }
-    body->codeGen();
+    if(body != nullptr)
+        body->codeGen();
     builder.CreateRetVoid();  // additional return
     generator->popFunction();
     return func;
@@ -268,10 +286,10 @@ llvm::Value* BinaryExprNode::codeGen()
         ret = isReal ? builder.CreateFCmpONE(l, r) : builder.CreateICmpNE(l, r);
         break;
     case OP_AND:
-        l->getType() != llvm::Type::getInt8Ty(context) || r->getType() != llvm::Type::getInt8Ty(context) ? nullptr : builder.CreateAnd(l, r);
+        l->getType() != llvm::Type::getInt1Ty(context) || r->getType() != llvm::Type::getInt1Ty(context) ? nullptr : builder.CreateAnd(l, r);
         break;
     case OP_OR:
-        l->getType() != llvm::Type::getInt8Ty(context) || r->getType() != llvm::Type::getInt8Ty(context) ? nullptr : builder.CreateOr(l, r);
+        l->getType() != llvm::Type::getInt1Ty(context) || r->getType() != llvm::Type::getInt1Ty(context) ? nullptr : builder.CreateOr(l, r);
         break;
     default:
         break;
@@ -281,19 +299,66 @@ llvm::Value* BinaryExprNode::codeGen()
 
 llvm::Value* CallExprNode::codeGen()
 {
-    llvm::Function* func = generator->module->getFunction(callee.name);
+    if(callee->name == "print")
+    {
+        std::string format = "";
+        std::vector<llvm::Value *> argsVec;
+        argsVec.push_back(nullptr);
+        for (int i = 0; i < args->size(); i++)
+        {
+            llvm::Value* val = (*args)[i]->codeGen();
+            if(val == nullptr) return nullptr;
+            argsVec.push_back(val);
+            if(val->getType()->isIntegerTy(32)) format += "%d";
+            else if(val->getType()->isFloatTy()) format += "%f";
+            else if(val->getType()->isIntegerTy(1)) format += "%d";
+            else if(val->getType()->isIntegerTy(8)) format += "%c";
+            else if(val->getType()->isArrayTy()) format += "%s";
+            else return exitError("Illegal output type");
+        }
+        argsVec[0] = builder.CreateGlobalStringPtr(format);
+        return builder.CreateCall(generator->printf, argsVec);
+    }
+
+    llvm::Function* func = generator->module->getFunction(callee->name);
     if(func == nullptr)
         return exitError("Function not defined");
     if (func->arg_size() != args->size())
         return exitError("Arguments mismatch");
 
-    std::vector<llvm::Value *> argsV;
+    std::vector<llvm::Value *> argsVec;
     for (int i = 0; i < args->size(); i++)
     {
-        argsV.push_back((*args)[i]->codeGen());
-        if(!argsV.back()) return nullptr;
+        argsVec.push_back((*args)[i]->codeGen());
+        if(!argsVec.back()) return nullptr;
     }
-    return builder.CreateCall(func, argsV);
+    return builder.CreateCall(func, argsVec);
+}
+
+llvm::Value* ScanNode::codeGen()
+{
+    std::string format = "";
+    std::vector<llvm::Value *> argsVec;
+    argsVec.push_back(nullptr);
+    for (int i = 0; i < args->size(); i++)
+    {
+        llvm::Value* val = (*args)[i]->addrGen();
+        if(val == nullptr) return nullptr;
+        argsVec.push_back(val);
+        SymItem* res = generator->symStack->find((*args)[i]->name);
+        if(res->isArray)
+        {
+            if(res->ty->isIntegerTy(8)) format += "%s";
+            else return exitError("Illegal input type");
+        }
+        if(res->ty->isIntegerTy(32)) format += "%d";
+        else if(res->ty->isFloatTy()) format += "%f";
+        else if(res->ty->isIntegerTy(1)) format += "%d";
+        else if(res->ty->isIntegerTy(8)) format += "%c";
+        else return exitError("Illegal input type");
+    }
+    argsVec[0] = builder.CreateGlobalStringPtr(format);
+    return builder.CreateCall(generator->scanf, argsVec);
 }
 
 llvm::Value* AssignStmtNode::codeGen()
@@ -326,6 +391,7 @@ llvm::Value* IfStmtNode::codeGen()
 llvm::Value* CompoundStmtNode::codeGen()
 {
     generator->symStack->create();
+    if(stmtList != nullptr)
     for(int i = 0; i < stmtList->size(); i++)
     {
         (*stmtList)[i]->codeGen();

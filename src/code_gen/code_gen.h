@@ -51,4 +51,6 @@ public:
     ~Generator();
 };
 
+extern Generator* generator;
+
 #endif
