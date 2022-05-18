@@ -17,7 +17,6 @@ class DoubleExprNode;
 class CharExprNode;
 class BooleanExprNode;
 class ConstDeclNode;
-// class TypeNode;
 class VariableDeclNode;
 class FuncDecNode;
 class BinaryExprNode;
@@ -227,7 +226,6 @@ private:
 };
 
 // scan单独做一类，因为参数必须是变量/字符数组
-// print按照CallExprNode调用即可
 class ScanNode: public StmtNode {
 public:
     ScanNode(std::vector<Identifier*> *args): args(args) {}
@@ -235,6 +233,23 @@ public:
     std::string dotGen() override;
 private:
     std::vector<Identifier*> *args;
+};
+
+// Call无法输出字符串常量， print也单独分类
+class PrintNode: public ExprNode {
+public:
+    union PrintItem
+    {
+        ExprNode* exp;
+        std::string* str;
+    };
+    PrintNode(std::vector<std::pair<PrintItem, bool> > *args): args(args) {}
+    llvm::Value* codeGen() override;
+    std::string dotGen() override;
+private:
+    Identifier* callee;
+    // bool sets to true if PrintItem is exp
+    std::vector<std::pair<PrintItem, bool> > *args;
 };
 
 class ReturnNode: public StmtNode {
@@ -275,7 +290,7 @@ public:
 private:
     ExprNode *condition;
     StmtNode *staments;
-}
+};
 
 class CompoundStmtNode : public StmtNode {
 public:

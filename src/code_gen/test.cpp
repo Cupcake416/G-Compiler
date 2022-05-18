@@ -5,32 +5,32 @@ int main()
 {
     generator = new Generator();
     std::vector<StmtNode*> rootList, mainList;
-    std::vector<ExprNode*> prinList;
+    std::vector<std::pair<PrintNode::PrintItem, bool> > prinList;
 
-    // TODO: string with bug
-    // StringNode* str = new StringNode("Hello world");
-    // prinList.push_back(str);
+    PrintNode::PrintItem item;
+    item.str = new std::string("Hello, ");
+    prinList.push_back(make_pair(item, false));
+    
     std::vector<Identifier*> nameList;
+    Identifier* a = new Identifier("a", nullptr, 10);
+    nameList.push_back(a);
+    
+    Identifier* a_i = new Identifier("a", new IntegerExprNode(1));
+    item.exp = a_i;
+    prinList.push_back(make_pair(item, true));
     CharExprNode* line = new CharExprNode('\n');
-    Identifier* i = new Identifier("i");
-    DoubleExprNode* l = new DoubleExprNode(5);
-    IntegerExprNode* r = new IntegerExprNode(3);
-    BinaryExprNode* op = new BinaryExprNode(BinaryExprNode::OP_PLUS, i, r);
-    nameList.push_back(i);
-    prinList.push_back(i);
-    prinList.push_back(line);
+    item.exp = line;
+    prinList.push_back(make_pair(item, true));
     
     VariableDeclNode* dec_i = new VariableDeclNode(&nameList, TYPE_INT);
-    AssignStmtNode* ass_i = new AssignStmtNode(i, l);
-    AssignStmtNode* ass_ii = new AssignStmtNode(i, op);
-    CallExprNode* prin = new CallExprNode(new Identifier("print"), &prinList);
+    AssignStmtNode* ass_i = new AssignStmtNode(a_i, new BinaryExprNode(BinaryExprNode::OP_PLUS, a_i, new IntegerExprNode(1)));
+    PrintNode* prin = new PrintNode(&prinList);
+    mainList.push_back(dec_i);
     mainList.push_back(ass_i);
-    mainList.push_back(ass_ii);
     mainList.push_back(prin);
 
     CompoundStmtNode* mainBody = new CompoundStmtNode(&mainList);
     FuncDecNode* main = new FuncDecNode(new Identifier("main"), FUNC_VOID, nullptr, mainBody);
-    rootList.push_back(dec_i);
     rootList.push_back(main);
 
     CompoundStmtNode* root = new CompoundStmtNode(&rootList);

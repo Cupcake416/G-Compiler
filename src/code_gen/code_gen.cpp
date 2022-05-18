@@ -96,9 +96,9 @@ llvm::Value* Identifier::codeGen()
         llvm::Value* val = index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
-        indexVec.push_back(val);
+        indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context)));
         llvm::Value* varPtr = builder.CreateInBoundsGEP(res->ty, res->addr, llvm::ArrayRef<llvm::Value*>(indexVec));
-        return builder.CreateLoad(res->ty, varPtr);
+        return builder.CreateLoad(res->ty->getArrayElementType(), varPtr);
     }
     return builder.CreateLoad(res->ty, res->addr);
 }
@@ -117,7 +117,7 @@ llvm::Value* Identifier::addrGen()
         llvm::Value* val = index == nullptr ? ZERO->codeGen() : index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
-        indexVec.push_back(val);
+        indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context)));
         return builder.CreateInBoundsGEP(res->ty, res->addr, llvm::ArrayRef<llvm::Value*>(indexVec));
     }
     return res->addr;
@@ -230,7 +230,7 @@ llvm::Value* VariableDeclNode::codeGen()
         }
         else
             addr = getAlloc(&(generator->getCurFunction()->getEntryBlock()), id->name, ty);
-        generator->symStack->add(id->name, elmTy, 0, 0, id->len == -1 ? 0 : id->len, addr);
+        generator->symStack->add(id->name, ty, id->len != -1, 0, id->len == -1 ? 0 : id->len, addr);
     }
     return nullptr;
 }
@@ -343,28 +343,6 @@ llvm::Value* BinaryExprNode::codeGen()
 
 llvm::Value* CallExprNode::codeGen()
 {
-    if(callee->name == "print")
-    {
-        std::string format = "";
-        std::vector<llvm::Value *> argsVec;
-        argsVec.push_back(nullptr);
-        for (int i = 0; i < args->size(); i++)
-        {
-            llvm::Value* val = (*args)[i]->codeGen();
-            if(val == nullptr) return nullptr;
-            argsVec.push_back(val);
-            // fprintf(stderr, "%d\n", val->getType()->getTypeID());
-            if(val->getType()->isIntegerTy(32)) format += "%d";
-            else if(val->getType()->isDoubleTy()) format += "%lf";
-            else if(val->getType()->isIntegerTy(1)) format += "%d";
-            else if(val->getType()->isIntegerTy(8)) format += "%c";
-            else if(val->getType()->isArrayTy()) format += "%s";
-            else return exitError("Illegal output type");
-        }
-        argsVec[0] = builder.CreateGlobalStringPtr(format);
-        return builder.CreateCall(generator->printf, argsVec);
-    }
-
     llvm::Function* func = generator->module->getFunction(callee->name);
     if(func == nullptr)
         return exitError("Function not defined: " + callee->name);
@@ -393,7 +371,7 @@ llvm::Value* ScanNode::codeGen()
         SymItem* res = generator->symStack->find((*args)[i]->name);
         if(res->isArray)
         {
-            if(res->ty->isIntegerTy(8)) format += "%s";
+            if(res->ty->getArrayElementType()->isIntegerTy(8)) format += "%s";
             else return exitError("Illegal input type");
         }
         if(res->ty->isIntegerTy(32)) format += "%d";
@@ -406,12 +384,41 @@ llvm::Value* ScanNode::codeGen()
     return builder.CreateCall(generator->scanf, argsVec);
 }
 
+llvm::Value* PrintNode::codeGen()
+{
+    std::string format = "";
+    std::vector<llvm::Value *> argsVec;
+    argsVec.push_back(nullptr);
+    for (int i = 0; i < args->size(); i++)
+    {
+        if((*args)[i].second)
+        {
+            llvm::Value* val = (*args)[i].first.exp->codeGen();
+            if(val == nullptr) return nullptr;
+            argsVec.push_back(val);
+            // fprintf(stderr, "%d\n", val->getType()->getTypeID());
+            if(val->getType()->isIntegerTy(32)) format += "%d";
+            else if(val->getType()->isDoubleTy()) format += "%lf";
+            else if(val->getType()->isIntegerTy(1)) format += "%d";
+            else if(val->getType()->isIntegerTy(8)) format += "%c";
+            else if(val->getType()->isArrayTy()) format += "%s";
+            else return exitError("Illegal output type");
+        }
+        else format += *((*args)[i].first.str);
+    }
+    argsVec[0] = builder.CreateGlobalStringPtr(format);
+    return builder.CreateCall(generator->printf, argsVec);
+}
+
 llvm::Value* AssignStmtNode::codeGen()
 {
     llvm::Value* l = lhs->addrGen();
     llvm::Value* r = rhs->codeGen();
     if(!l || !r) return nullptr;
-    r = tryCast(r, generator->symStack->find(lhs->name)->ty);
+    llvm::Type* ty = generator->symStack->find(lhs->name)->ty;
+    if(ty->isArrayTy())
+        ty = ty->getArrayElementType();
+    r = tryCast(r, ty);
     return builder.CreateStore(r, l);
 }
 
