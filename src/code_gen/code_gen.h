@@ -41,6 +41,7 @@ public:
     llvm::Module *module;
     llvm::Function *printf, *scanf;
     stack<llvm::Function*> funcStack;
+    stack<std::pair<llvm::BasicBlock*, llvm::BasicBlock*> > loopStack;
     SymStack* symStack;
 
     llvm::Function* getCurFunction();
@@ -49,6 +50,11 @@ public:
     void generate(Node *root);
     Generator();
     ~Generator();
+
+    // llvm's every BasicBlock has exactly one 'br' or 'ret' as end
+    // So creating jump instructions needs record
+    // 0 - not set, 1 - ret, 2 - break, 3 - continue
+    int brSet = 0;
 };
 
 extern Generator* generator;

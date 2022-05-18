@@ -90,7 +90,7 @@ llvm::Value* Identifier::codeGen()
     if(res == nullptr)
         return exitError("Undefined Variable: " + this->name);
     if(res->addr == nullptr)
-        res->addr = generator->funcStack.top()->getValueSymbolTable()->lookup(this->name);
+        res->addr = generator->getCurFunction()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
         return res->addr;
     if(res->isArray)
@@ -112,7 +112,7 @@ llvm::Value* Identifier::addrGen()
     if(res == nullptr)
         return exitError("Undefined Variable: " + this->name);
     if(res->addr == nullptr)
-        res->addr = generator->funcStack.top()->getValueSymbolTable()->lookup(this->name);
+        res->addr = generator->getCurFunction()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
         return exitError("Constant " + this->name + " can't be assigned");
     if(res->isArray && index != nullptr)
@@ -152,6 +152,7 @@ llvm::Value* StringNode::codeGen()
 
 llvm::Value* ReturnNode::codeGen()
 {
+    generator->brSet = 1;
     if(res != nullptr)
         return builder.CreateRet(res->codeGen());
     return builder.CreateRetVoid();
@@ -285,7 +286,9 @@ llvm::Value* FuncDecNode::codeGen()
     }
     if(body != nullptr)
         body->codeGen();
-    builder.CreateRetVoid();  // additional return
+    if(!generator->brSet) 
+        builder.CreateRetVoid();  // additional return
+    else generator->brSet = 0;
     generator->popFunction();
     return func;
 }
@@ -441,14 +444,18 @@ llvm::Value* IfStmtNode::codeGen()
     llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "then", func);
     llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "else", func);
     llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(context, "merge", func);
-    auto br = builder.CreateCondBr(condV, thenBB, elseBB);
+    llvm::Value* br = builder.CreateCondBr(condV, thenBB, elseBB);
     builder.SetInsertPoint(thenBB);
-    llvm::Value* thenV = thenStmt->codeGen();
-    builder.CreateBr(mergeBB);
+    thenStmt->codeGen();
+    if(!generator->brSet)
+        builder.CreateBr(mergeBB);
+    else generator->brSet = 0;
     thenBB = builder.GetInsertBlock();
     builder.SetInsertPoint(elseBB);
-    llvm::Value* elseV = elseStmt->codeGen();
-    builder.CreateBr(mergeBB);
+    if(elseStmt) elseStmt->codeGen();
+    if(!generator->brSet)
+        builder.CreateBr(mergeBB);
+    else generator->brSet = 0;
     elseBB = builder.GetInsertBlock();
     builder.SetInsertPoint(mergeBB);    
     return br;
@@ -461,7 +468,55 @@ llvm::Value* CompoundStmtNode::codeGen()
     for(int i = 0; i < stmtList->size(); i++)
     {
         (*stmtList)[i]->codeGen();
+        if(i + 1 < stmtList->size())
+        {
+            if((*stmtList)[i]->getClass() == "BreakNode")
+                return exitError("Illegal statements after 'break'");
+            else if((*stmtList)[i]->getClass() == "ReturnNode")
+                return exitError("Illegal statements after 'return'");
+            else if((*stmtList)[i]->getClass() == "ContinueNode")
+                return exitError("Illegal statements after 'continue'");
+        }
     }
     generator->symStack->remove();
     return nullptr;
+}
+
+llvm::Value* WhileStmtNode::codeGen()
+{
+    llvm::Function* func = generator->getCurFunction();
+    llvm::BasicBlock* checkBB = llvm::BasicBlock::Create(context, "check", func);
+    llvm::BasicBlock* loopBB = llvm::BasicBlock::Create(context, "loop", func);
+    llvm::BasicBlock* endBB = llvm::BasicBlock::Create(context, "loop_end", func);
+    generator->loopStack.push(make_pair(checkBB, endBB));
+    builder.CreateBr(checkBB);
+    builder.SetInsertPoint(checkBB);
+    llvm::Value* condV = condition->codeGen();
+    llvm::Value* br = builder.CreateCondBr(condV, loopBB, endBB);
+    checkBB = builder.GetInsertBlock();
+    builder.SetInsertPoint(loopBB);
+    if(staments) staments->codeGen();
+    if(!generator->brSet)
+        builder.CreateBr(checkBB);
+    else generator->brSet = 0;
+    loopBB = builder.GetInsertBlock();
+    builder.SetInsertPoint(endBB);    
+    generator->loopStack.pop();
+    return br;
+}
+
+llvm::Value* BreakNode::codeGen()
+{
+    if(generator->loopStack.empty())
+        return exitError("Invalid Break");
+    generator->brSet = 2;
+    return builder.CreateBr(generator->loopStack.top().second);
+}
+
+llvm::Value* ContinueNode::codeGen()
+{
+    if(generator->loopStack.empty())
+        return exitError("Invalid Continue");
+    generator->brSet = 3;
+    return builder.CreateBr(generator->loopStack.top().first);
 }
