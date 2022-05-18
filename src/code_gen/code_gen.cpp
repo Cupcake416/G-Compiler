@@ -2,7 +2,7 @@
 
 Generator *generator;
 
-IntegerExprNode* ZERO = new IntegerExprNode(0);
+bool hasError = false;
 
 llvm::AllocaInst* getAlloc(llvm::BasicBlock *BB, llvm::StringRef VarName, llvm::Type* type) {
   llvm::IRBuilder<> tmp(BB);
@@ -12,6 +12,7 @@ llvm::AllocaInst* getAlloc(llvm::BasicBlock *BB, llvm::StringRef VarName, llvm::
 llvm::Value* exitError(const std::string s)
 {
     fprintf(stderr, "%s\n", s.c_str());
+    hasError = true;
     return nullptr;
 }
 
@@ -54,6 +55,7 @@ void Generator::popFunction()
 void Generator::generate(Node* root)
 {
     root->codeGen();
+    if(hasError) return;
     this->module->print(llvm::outs(), nullptr);
 }
 
@@ -93,6 +95,7 @@ llvm::Value* Identifier::codeGen()
         return res->addr;
     if(res->isArray)
     {
+        if(index == nullptr) return res->addr;
         llvm::Value* val = index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
@@ -112,9 +115,9 @@ llvm::Value* Identifier::addrGen()
         res->addr = generator->funcStack.top()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
         return exitError("Constant " + this->name + " can't be assigned");
-    if(res->isArray)
+    if(res->isArray && index != nullptr)
     {
-        llvm::Value* val = index == nullptr ? ZERO->codeGen() : index->codeGen();
+        llvm::Value* val = index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
         indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context)));
@@ -368,16 +371,21 @@ llvm::Value* ScanNode::codeGen()
         llvm::Value* val = (*args)[i]->addrGen();
         if(val == nullptr) return nullptr;
         argsVec.push_back(val);
-        SymItem* res = generator->symStack->find((*args)[i]->name);
-        if(res->isArray)
+        SymItem res = *(generator->symStack->find((*args)[i]->name));
+        if(res.isArray)
         {
-            if(res->ty->getArrayElementType()->isIntegerTy(8)) format += "%s";
-            else return exitError("Illegal input type");
+            if((*args)[i]->index == nullptr)
+            {
+                if(res.ty->getArrayElementType()->isIntegerTy(8)) format += "%s";
+                else return exitError("Illegal input type");
+                continue;
+            }
+            else res.ty = res.ty->getArrayElementType();
         }
-        if(res->ty->isIntegerTy(32)) format += "%d";
-        else if(res->ty->isDoubleTy()) format += "%lf";
-        else if(res->ty->isIntegerTy(1)) format += "%d";
-        else if(res->ty->isIntegerTy(8)) format += "%c";
+        if(res.ty->isIntegerTy(32)) format += "%d";
+        else if(res.ty->isDoubleTy()) format += "%lf";
+        else if(res.ty->isIntegerTy(1)) format += "%d";
+        else if(res.ty->isIntegerTy(8)) format += "%c";
         else return exitError("Illegal input type");
     }
     argsVec[0] = builder.CreateGlobalStringPtr(format);
@@ -396,12 +404,11 @@ llvm::Value* PrintNode::codeGen()
             llvm::Value* val = (*args)[i].first.exp->codeGen();
             if(val == nullptr) return nullptr;
             argsVec.push_back(val);
-            // fprintf(stderr, "%d\n", val->getType()->getTypeID());
             if(val->getType()->isIntegerTy(32)) format += "%d";
             else if(val->getType()->isDoubleTy()) format += "%lf";
             else if(val->getType()->isIntegerTy(1)) format += "%d";
             else if(val->getType()->isIntegerTy(8)) format += "%c";
-            else if(val->getType()->isArrayTy()) format += "%s";
+            else if(val->getType()->isPointerTy()) format += "%s";
             else return exitError("Illegal output type");
         }
         else format += *((*args)[i].first.str);
@@ -417,7 +424,12 @@ llvm::Value* AssignStmtNode::codeGen()
     if(!l || !r) return nullptr;
     llvm::Type* ty = generator->symStack->find(lhs->name)->ty;
     if(ty->isArrayTy())
-        ty = ty->getArrayElementType();
+    {
+        if(lhs->index == nullptr)
+            return exitError("Array " + lhs->name + " can't be assigned");
+        else
+            ty = ty->getArrayElementType();
+    }
     r = tryCast(r, ty);
     return builder.CreateStore(r, l);
 }
