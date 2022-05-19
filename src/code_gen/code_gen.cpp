@@ -90,7 +90,7 @@ llvm::Value* Identifier::codeGen()
     if(res == nullptr)
         return exitError("Undefined Variable: " + this->name);
     if(res->addr == nullptr)
-        res->addr = generator->getCurFunction()->getValueSymbolTable()->lookup(this->name);
+        return generator->getCurFunction()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
         return res->addr;
     if(res->isArray)
@@ -112,7 +112,7 @@ llvm::Value* Identifier::addrGen()
     if(res == nullptr)
         return exitError("Undefined Variable: " + this->name);
     if(res->addr == nullptr)
-        res->addr = generator->getCurFunction()->getValueSymbolTable()->lookup(this->name);
+        return exitError("Function arguments are read-only");
     if(res->isConstant)
         return exitError("Constant " + this->name + " can't be assigned");
     if(res->isArray && index != nullptr)
@@ -241,32 +241,38 @@ llvm::Value* VariableDeclNode::codeGen()
 
 llvm::Value* FuncDecNode::codeGen()
 {
+    generator->symStack->create();
     llvm::Function *func = generator->module->getFunction(name->name);
-    if (func == nullptr && name->name != "main" || name->name == "scan" || name->name == "print")
+    if (func != nullptr || name->name == "scan" || name->name == "print")
         return exitError("Function redefinition: " + name->name); 
     std::vector<llvm::Type*> argTypeVec;
     std::vector<std::string> argNameVec;
     if (argList != nullptr) {
         for (int i = 0; i < argList->size(); i++) {
-            bool isArr = (*argList)[i].second->len == 0;
+            std::string name = (*argList)[i].second->name;
+            if(generator->symStack->findCur(name))
+                return exitError("Argument Redefinition: " + name);
+            if((*argList)[i].second->len >= 0)
+                return exitError("Array argument " + name + " not supported");
             llvm::Type* ty;
             switch((*argList)[i].first)
             {
             case TYPE_INT:
-                if(isArr) ty = llvm::Type::getInt32PtrTy(context); else ty = llvm::Type::getInt32Ty(context);
+                ty = llvm::Type::getInt32Ty(context);
                 break;
             case TYPE_REAL:
-                if(isArr) ty = llvm::Type::getDoublePtrTy(context); else ty = llvm::Type::getDoubleTy(context);
+                ty = llvm::Type::getDoubleTy(context);
                 break;
             case TYPE_BOOL:
-                if(isArr) ty = llvm::Type::getInt1PtrTy(context); else ty = llvm::Type::getInt1Ty(context);
+                ty = llvm::Type::getInt1Ty(context);
                 break;
             default:
-                if(isArr) ty = llvm::Type::getInt8PtrTy(context); else ty = llvm::Type::getInt8Ty(context);
+                ty = llvm::Type::getInt8Ty(context);
                 break;
             }
             argTypeVec.push_back(ty);
-            argNameVec.push_back((*argList)[i].second->name);
+            argNameVec.push_back(name);
+            generator->symStack->add(name, ty, 0, 0, 0, nullptr);
         }
     }
     llvm::Type* retType = type == FUNC_INT ? llvm::Type::getInt32Ty(context) :
@@ -289,6 +295,7 @@ llvm::Value* FuncDecNode::codeGen()
     if(!generator->brSet) 
         builder.CreateRetVoid();  // additional return
     else generator->brSet = 0;
+    generator->symStack->remove();
     generator->popFunction();
     return func;
 }
@@ -352,10 +359,16 @@ llvm::Value* CallExprNode::codeGen()
     llvm::Function* func = generator->module->getFunction(callee->name);
     if(func == nullptr)
         return exitError("Function not defined: " + callee->name);
-    if (func->arg_size() != args->size())
+    if(args == nullptr)
+    {
+        if(func->arg_size() > 0)
+            return exitError("Arguments mismatch: " + callee->name);
+    }
+    else if (func->arg_size() != args->size())
         return exitError("Arguments mismatch: " + callee->name);
 
     std::vector<llvm::Value *> argsVec;
+    if(args != nullptr)
     for (int i = 0; i < args->size(); i++)
     {
         argsVec.push_back((*args)[i]->codeGen());
