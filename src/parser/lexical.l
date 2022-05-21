@@ -21,8 +21,8 @@ digits [0-9]+
 
 CHAR  \'.\'|\'\\.\'
 STRING \"(\\.|[^"\\])*\"
-INT -?0|[1-9][0-9]*
-REAL -?{digits}\.{digits}
+INT -?(0|[1-9][0-9]*)
+REAL -?({digits}\.{digits})
 BOOL "true"|"false"
 TYPE "int"|"double"|"bool"|"char"
 
@@ -136,7 +136,7 @@ BLANK \t|" "|\r|\n
 {ID}  {yylval.id = new std::string(strText()); return ID;}
 
 {BLANK}  {if(strText() == "\n") line++;}
-{COMMENT} {line++;}
+{COMMENT} {;}
 
 .   {fprintf(stderr, "Line %d: Invalid characters \'%s\'\n", line, yytext);}
 

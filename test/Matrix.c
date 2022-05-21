@@ -1,4 +1,3 @@
-#include <stdio.h>
 int a[625], b[625], c[625];
 
 int widthCnt(int num)
@@ -26,28 +25,23 @@ int main()
 {
     int ma, na, mb, nb;
     int i, j, k;
-    scanf("%d%d", &ma, &na);
-    // scan(ma, na);
+    scan(ma, na);
     i = 0;
     while(i < na * ma)
     {
-        scanf("%d", &a[i]);
-        // scan(a[i]);
+        scan(a[i]);
         i = i + 1;
     }
-    scanf("%d%d", &mb, &nb);
-    // scan(mb, nb);
+    scan(mb, nb);
     i = 0;
     while(i < nb * mb)
     {
-        scanf("%d", &b[i]);
-        // scan(b[i]);
+        scan(b[i]);
         i = i + 1;
     }
     if(na != mb)
     {
-        printf("Incompatible Dimensions\n");
-        // print("Incompatible Dimensions\n");
+        print("Incompatible Dimensions\n");
         return 0;
     }
     i = 0;
@@ -75,16 +69,13 @@ int main()
             k = widthCnt(c[i * nb + j]);
             while(k > 0)
             {
-                printf(" ");
-                // print(" ");
+                print(" ");
                 k = k - 1;
             }
-            printf("%d", c[i * nb + j]);
-            // print(c[i * nb + j]);
+            print(c[i * nb + j]);
             j = j + 1;
         }
-        printf("\n");
-        // print("\n");
+        print("\n");
         i = i + 1;
     }
     return 0;

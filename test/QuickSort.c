@@ -1,4 +1,3 @@
-#include <stdio.h>
 int a[10000];
 
 void sort(int l, int r)
@@ -29,21 +28,18 @@ void sort(int l, int r)
 int main()
 {
     int n, i;
-    scanf("%d", &n);
-    // scan(n);
+    scan(n);
     i = 0;
     while(i < n)
     {
-        scanf("%d", &a[i]);
-        // scan(a[i]);
+        scan(a[i]);
         i = i + 1;
     }
     sort(0, n - 1);
     i = 0;
     while(i < n)
     {
-        printf("%d\n", a[i]);
-        // print(a[i], "\n");
+        print(a[i], "\n");
         i = i + 1;
     }
     return 0;
