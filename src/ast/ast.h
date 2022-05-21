@@ -34,7 +34,7 @@ public:
     virtual std::string dotGen() {
         return "";
     };
-    virtual std::string getClass() = 0;
+    int line;
 };
 
 class StmtNode: public Node {
@@ -54,11 +54,10 @@ class ExprNode: public StmtNode {
 // 由于缺少指针实现，函数参数定义只使用变量
 class Identifier: public ExprNode {
 public:
-    Identifier(std::string name, ExprNode* index = nullptr, int len = -1): name(name), index(index), len(len) {}
+    Identifier(int line, std::string name, ExprNode* index = nullptr, int len = -1): name(name), index(index), len(len) {this->line = line;}
     llvm::Value* codeGen() override;
     llvm::Value* addrGen();
     std::string dotGen() override;
-    std::string getClass() override {return "Identifier";}
     std::string name;
     ExprNode* index;
     int len;
@@ -78,7 +77,7 @@ public:
 
 class IntegerExprNode: public ConstExprNode {
 public:
-    IntegerExprNode(int value): value(value) {}
+    IntegerExprNode(int line, int value): value(value) {this->line = line;}
     virtual ConstExprNode::Value getValue() override {
         Value v;
         v.i = value;
@@ -86,14 +85,12 @@ public:
     }
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "IntegerExprNode";}
-private:
     int value;
 };
 
 class DoubleExprNode: public ConstExprNode {
 public:
-    DoubleExprNode(double value): value(value) {}
+    DoubleExprNode(int line, double value): value(value) {this->line = line;}
     virtual ConstExprNode::Value getValue() override {
         Value v;
         v.d = value;
@@ -101,14 +98,12 @@ public:
     }
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "DoubleExprNode";}
-private:
     double value;
 };
 
 class CharExprNode: public ConstExprNode {
 public:
-    CharExprNode(char value): value(value) {}
+    CharExprNode(int line, char value): value(value) {this->line = line;}
     virtual ConstExprNode::Value getValue() override {
         Value v;
         v.c = value;
@@ -116,14 +111,12 @@ public:
     }
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "CharExprNode";}
-private:
     char value;
 };
 
 class BooleanExprNode: public ConstExprNode {
 public:
-    BooleanExprNode(bool value): value(value) {}
+    BooleanExprNode(int line, bool value): value(value) {this->line = line;}
     virtual ConstExprNode::Value getValue() override {
         Value v;
         v.b = value;
@@ -131,19 +124,15 @@ public:
     }
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "BooleanExprNode";}
-private:
     bool value;
 };
 
 // only used as constants in 'print' like print("Value: ", n);
 class StringNode: public ExprNode {
 public: 
-    StringNode(std::string str): str(str) {}
+    StringNode(int line, std::string str): str(str) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "StringNode";}
-private:
     std::string str;
 };
 
@@ -162,13 +151,33 @@ enum FuncType {
     FUNC_VOID
 };
 
+enum BinaryOperator {
+    OP_PLUS,
+    OP_MINUS,
+    OP_MUL,
+    OP_DIV,
+    OP_GE,
+    OP_GT, 
+    OP_LT,
+    OP_LE,
+    OP_EQUAL,
+    OP_UNEQUAL,
+    OP_OR,
+    OP_MOD,
+    OP_AND,
+};
+
+union PrintItem
+{
+    ExprNode* exp;
+    std::string* str;
+};
+
 class ConstDeclNode: public StmtNode {
 public: 
-    ConstDeclNode(Identifier *id, ConstExprNode *value, NodeType type): name(id), value(value), type(type) {}
+    ConstDeclNode(int line, Identifier *id, ConstExprNode *value, NodeType type): name(id), value(value), type(type) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "ConstDeclNode";}
-private:
     Identifier *name;
     ConstExprNode *value;
     NodeType type;
@@ -176,23 +185,19 @@ private:
 
 class VariableDeclNode: public StmtNode {
 public:
-    VariableDeclNode(std::vector<Identifier*> *nameList, NodeType type): nameList(nameList), type(type) {}
+    VariableDeclNode(int line, std::vector<Identifier*> *nameList, NodeType type): nameList(nameList), type(type) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "VariableDeclNode";}
-private:
     std::vector<Identifier*> *nameList;
     NodeType type;
 };
 
 class FuncDecNode: public StmtNode {
 public:
-    FuncDecNode(Identifier* name, FuncType type, std::vector<std::pair<NodeType, Identifier*> > *argList, CompoundStmtNode* body): name(name), type(type), argList(argList), body(body) {}
+    FuncDecNode(int line, std::string name, FuncType type, std::vector<std::pair<NodeType, Identifier*> > *argList, CompoundStmtNode* body): name(name), type(type), argList(argList), body(body) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "FuncDecNode";}
-private:
-    Identifier* name;
+    std::string name;
     FuncType type;  // return type
     std::vector<std::pair<NodeType, Identifier*> > *argList; // set to null if no args
     CompoundStmtNode* body;
@@ -200,26 +205,9 @@ private:
 
 class BinaryExprNode: public ExprNode {
 public: 
-    enum BinaryOperator {
-        OP_PLUS,
-        OP_MINUS,
-        OP_MUL,
-        OP_DIV,
-        OP_GE,
-        OP_GT, 
-        OP_LT,
-        OP_LE,
-        OP_EQUAL,
-        OP_UNEQUAL,
-        OP_OR,
-        OP_MOD,
-        OP_AND,
-    };
-    BinaryExprNode(BinaryOperator op, ExprNode* lhs, ExprNode* rhs): op(op), lhs(lhs), rhs(rhs) {}
+    BinaryExprNode(int line, BinaryOperator op, ExprNode* lhs, ExprNode* rhs): op(op), lhs(lhs), rhs(rhs) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "BinaryExprNode";}
-private:
     std::vector<std::string> opName{"+", "-", "*", "/", ">=", ">", "<", "<=", "==", "!=", "||", "%", "&&"};
     BinaryOperator op;
     ExprNode *lhs;
@@ -228,39 +216,28 @@ private:
 
 class CallExprNode: public ExprNode {
 public:
-    CallExprNode(Identifier* callee, std::vector<ExprNode*> *args): callee(callee), args(args) {}
+    CallExprNode(int line, std::string callee, std::vector<ExprNode*> *args): callee(callee), args(args) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "CallExprNode";}
-private:
-    Identifier* callee;
+    std::string callee;
     std::vector<ExprNode*> *args;
 };
 
 // scan单独做一类，因为参数必须是变量/字符数组
 class ScanNode: public StmtNode {
 public:
-    ScanNode(std::vector<Identifier*> *args): args(args) {}
+    ScanNode(int line, std::vector<Identifier*> *args): args(args) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "ScanNode";}
-private:
     std::vector<Identifier*> *args;
 };
 
 // Call无法输出字符串常量， print也单独分类
 class PrintNode: public ExprNode {
 public:
-    union PrintItem
-    {
-        ExprNode* exp;
-        std::string* str;
-    };
-    PrintNode(std::vector<std::pair<PrintItem, bool> > *args): args(args) {}
+    PrintNode(int line, std::vector<std::pair<PrintItem, bool> > *args): args(args) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "PrintNode";}
-private:
     Identifier* callee;
     // bool sets to true if PrintItem is exp
     std::vector<std::pair<PrintItem, bool> > *args;
@@ -268,32 +245,26 @@ private:
 
 class ReturnNode: public StmtNode {
 public:
-    ReturnNode(ExprNode* res): res(res) {}
+    ReturnNode(int line, ExprNode* res): res(res) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "ReturnNode";}
-private:
     ExprNode* res;
 };
 
 class AssignStmtNode: public StmtNode {
 public:
-    AssignStmtNode(Identifier *lhs, ExprNode *rhs): lhs(lhs), rhs(rhs) {}
+    AssignStmtNode(int line, Identifier *lhs, ExprNode *rhs): lhs(lhs), rhs(rhs) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "AssignStmtNode";}
-private:
     Identifier *lhs;
     ExprNode *rhs;
 };
 
 class IfStmtNode: public StmtNode {
 public:
-    IfStmtNode(ExprNode *condition, StmtNode *thenStmt, StmtNode *elseStmt): condition(condition), thenStmt(thenStmt), elseStmt(elseStmt) {}
+    IfStmtNode(int line, ExprNode *condition, StmtNode *thenStmt, StmtNode *elseStmt): condition(condition), thenStmt(thenStmt), elseStmt(elseStmt) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "IfStmtNode";}
-private:
     ExprNode *condition;
     StmtNode *thenStmt;
     StmtNode *elseStmt;
@@ -301,35 +272,31 @@ private:
 
 class WhileStmtNode: public StmtNode {
 public:
-    WhileStmtNode(ExprNode *condition, StmtNode *staments): condition(condition), staments(staments) {}
+    WhileStmtNode(int line, ExprNode *condition, StmtNode *staments): condition(condition), staments(staments) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "WhileStmtNode";}
-private:
     ExprNode *condition;
     StmtNode *staments;
 };
 
 class CompoundStmtNode : public StmtNode {
 public:
-    CompoundStmtNode(std::vector<StmtNode*> *stmtList) : stmtList(stmtList) {}
+    CompoundStmtNode(int line, std::vector<StmtNode*> *stmtList) : stmtList(stmtList) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "CompoundStmtNode";}
-private:
     std::vector<StmtNode*> *stmtList;
 };
 
 class BreakNode: public StmtNode {
 public:
+    BreakNode(int line) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "BreakNode";}
 };
 
 class ContinueNode: public StmtNode {
 public:
+    ContinueNode(int line) {this->line = line;}
     llvm::Value* codeGen() override;
     std::string dotGen() override;
-    std::string getClass() override {return "ContinueNode";}
 };
