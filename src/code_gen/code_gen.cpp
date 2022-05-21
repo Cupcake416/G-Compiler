@@ -9,14 +9,14 @@ llvm::AllocaInst* getAlloc(llvm::BasicBlock *BB, llvm::StringRef VarName, llvm::
   return tmp.CreateAlloca(type, nullptr, VarName);
 }
 
-llvm::Value* exitError(const std::string s)
+llvm::Value* exitError(int line, const std::string s)
 {
-    fprintf(stderr, "%s\n", s.c_str());
+    fprintf(stderr, "Line %d: %s\n", line, s.c_str());
     hasError = true;
     return nullptr;
 }
 
-llvm::Value* tryCast(llvm::Value* cur, llvm::Type* tar)
+llvm::Value* tryCast(llvm::Value* cur, llvm::Type* tar, int line)
 {
     if(cur->getType()->getTypeID() != tar->getTypeID())
         goto CASTLABEL;
@@ -32,7 +32,7 @@ llvm::Value* tryCast(llvm::Value* cur, llvm::Type* tar)
         op = llvm::Instruction::Trunc;
     else if(cur->getType()->isIntegerTy(8) && tar->isIntegerTy(32) || cur->getType()->isIntegerTy(1) && tar->isIntegerTy())
         op = llvm::Instruction::ZExt;
-    else return exitError("Invalid Cast");
+    else return exitError(line, "Invalid Cast");
 
     return builder.CreateCast(op, cur, tar);
 }
@@ -88,7 +88,7 @@ llvm::Value* Identifier::codeGen()
 {
     SymItem* res = generator->symStack->find(this->name);
     if(res == nullptr)
-        return exitError("Undefined Variable: " + this->name);
+        return exitError(line, "Undefined Variable: " + this->name);
     if(res->addr == nullptr)
         return generator->getCurFunction()->getValueSymbolTable()->lookup(this->name);
     if(res->isConstant)
@@ -99,7 +99,7 @@ llvm::Value* Identifier::codeGen()
         llvm::Value* val = index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
-        indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context)));
+        indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context), line));
         llvm::Value* varPtr = builder.CreateInBoundsGEP(res->ty, res->addr, llvm::ArrayRef<llvm::Value*>(indexVec));
         return builder.CreateLoad(res->ty->getArrayElementType(), varPtr);
     }
@@ -110,17 +110,17 @@ llvm::Value* Identifier::addrGen()
 {
     SymItem* res = generator->symStack->find(this->name);
     if(res == nullptr)
-        return exitError("Undefined Variable: " + this->name);
+        return exitError(line, "Undefined Variable: " + this->name);
     if(res->addr == nullptr)
-        return exitError("Function arguments are read-only");
+        return exitError(line, "Function arguments are read-only");
     if(res->isConstant)
-        return exitError("Constant " + this->name + " can't be assigned");
+        return exitError(line, "Constant " + this->name + " can't be assigned");
     if(res->isArray && index != nullptr)
     {
         llvm::Value* val = index->codeGen();
         std::vector<llvm::Value*> indexVec;
         indexVec.push_back(builder.getInt32(0));
-        indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context)));
+        indexVec.push_back(tryCast(val, llvm::Type::getInt32Ty(context), line));
         return builder.CreateInBoundsGEP(res->ty, res->addr, llvm::ArrayRef<llvm::Value*>(indexVec));
     }
     return res->addr;
@@ -161,9 +161,9 @@ llvm::Value* ReturnNode::codeGen()
 llvm::Value* ConstDeclNode::codeGen()
 {
     if(name->len != -1)
-        return exitError("Const Array is not supported");
+        return exitError(line, "Const Array is not supported");
     if(generator->symStack->findCur(name->name))
-        return exitError("Variable Redefinition: " + name->name);
+        return exitError(line, "Variable Redefinition: " + name->name);
     llvm::Type* ty;
     switch(type)
     {
@@ -214,7 +214,7 @@ llvm::Value* VariableDeclNode::codeGen()
     {
         Identifier* id = (*nameList)[i];
         if(generator->symStack->findCur(id->name))
-            return exitError("Variable Redefinition: " + id->name);
+            return exitError(line, "Variable Redefinition: " + id->name);
         llvm::Value* addr;
         llvm::Type* ty = id->len == -1 ? elmTy : llvm::ArrayType::get(elmTy, id->len);
         if(generator->getCurFunction() == nullptr)
@@ -242,18 +242,18 @@ llvm::Value* VariableDeclNode::codeGen()
 llvm::Value* FuncDecNode::codeGen()
 {
     generator->symStack->create();
-    llvm::Function *func = generator->module->getFunction(name->name);
-    if (func != nullptr || name->name == "scan" || name->name == "print")
-        return exitError("Function redefinition: " + name->name); 
+    llvm::Function *func = generator->module->getFunction(name);
+    if (func != nullptr || name == "scan" || name == "print")
+        return exitError(line, "Function redefinition: " + name); 
     std::vector<llvm::Type*> argTypeVec;
     std::vector<std::string> argNameVec;
     if (argList != nullptr) {
         for (int i = 0; i < argList->size(); i++) {
             std::string name = (*argList)[i].second->name;
             if(generator->symStack->findCur(name))
-                return exitError("Argument Redefinition: " + name);
+                return exitError(line, "Argument Redefinition: " + name);
             if((*argList)[i].second->len >= 0)
-                return exitError("Array argument " + name + " not supported");
+                return exitError(line, "Array argument " + name + " not supported");
             llvm::Type* ty;
             switch((*argList)[i].first)
             {
@@ -280,8 +280,9 @@ llvm::Value* FuncDecNode::codeGen()
                           type == FUNC_VOID ? llvm::Type::getVoidTy(context) : 
                           type == FUNC_CHAR ? llvm::Type::getInt8Ty(context) : llvm::Type::getInt1Ty(context);
     llvm::FunctionType* funcType = llvm::FunctionType::get(retType, argTypeVec, false);
-    func = llvm::Function::Create(funcType, llvm::GlobalValue::ExternalLinkage, name->name, generator->module);
+    func = llvm::Function::Create(funcType, llvm::GlobalValue::ExternalLinkage, name, generator->module);
     generator->pushFunction(func);
+    llvm::BasicBlock* allocBB = llvm::BasicBlock::Create(context, "Alloc", func);
     llvm::BasicBlock* BB = llvm::BasicBlock::Create(context, "FuncEntry", func);
     builder.SetInsertPoint(BB);
     if(argList != nullptr) {  
@@ -296,6 +297,8 @@ llvm::Value* FuncDecNode::codeGen()
         builder.CreateRetVoid();  // additional return
     else generator->brSet = 0;
     generator->symStack->remove();
+    builder.SetInsertPoint(allocBB);
+    builder.CreateBr(BB);
     generator->popFunction();
     return func;
 }
@@ -308,8 +311,8 @@ llvm::Value* BinaryExprNode::codeGen()
     
     if(op == OP_AND || op == OP_OR)
     {
-        l = tryCast(l, llvm::Type::getInt1Ty(context));
-        r = tryCast(r, llvm::Type::getInt1Ty(context));
+        l = tryCast(l, llvm::Type::getInt1Ty(context), line);
+        r = tryCast(r, llvm::Type::getInt1Ty(context), line);
         return op == OP_AND ? builder.CreateAnd(l, r) : builder.CreateOr(l, r);
     }
     
@@ -322,8 +325,8 @@ llvm::Value* BinaryExprNode::codeGen()
     else if(l->getType()->isIntegerTy(8) || r->getType()->isIntegerTy(8))
         ty = llvm::Type::getInt8Ty(context);
     else ty = llvm::Type::getInt1Ty(context);
-    l = tryCast(l, ty);
-    r = tryCast(r, ty);
+    l = tryCast(l, ty, line);
+    r = tryCast(r, ty, line);
 
     switch (op)
     {
@@ -350,22 +353,22 @@ llvm::Value* BinaryExprNode::codeGen()
     case OP_UNEQUAL:
         return isReal ? builder.CreateFCmpONE(l, r) : builder.CreateICmpNE(l, r);
     default:
-        return exitError("Invalid binary operation");
+        return exitError(line, "Invalid binary operation");
     }
 }
 
 llvm::Value* CallExprNode::codeGen()
 {
-    llvm::Function* func = generator->module->getFunction(callee->name);
+    llvm::Function* func = generator->module->getFunction(callee);
     if(func == nullptr)
-        return exitError("Function not defined: " + callee->name);
+        return exitError(line, "Function not defined: " + callee);
     if(args == nullptr)
     {
         if(func->arg_size() > 0)
-            return exitError("Arguments mismatch: " + callee->name);
+            return exitError(line, "Arguments mismatch: " + callee);
     }
     else if (func->arg_size() != args->size())
-        return exitError("Arguments mismatch: " + callee->name);
+        return exitError(line, "Arguments mismatch: " + callee);
 
     std::vector<llvm::Value *> argsVec;
     if(args != nullptr)
@@ -393,7 +396,7 @@ llvm::Value* ScanNode::codeGen()
             if((*args)[i]->index == nullptr)
             {
                 if(res.ty->getArrayElementType()->isIntegerTy(8)) format += "%s";
-                else return exitError("Illegal input type");
+                else return exitError(line, "Illegal input type");
                 continue;
             }
             else res.ty = res.ty->getArrayElementType();
@@ -402,7 +405,7 @@ llvm::Value* ScanNode::codeGen()
         else if(res.ty->isDoubleTy()) format += "%lf";
         else if(res.ty->isIntegerTy(1)) format += "%d";
         else if(res.ty->isIntegerTy(8)) format += "%c";
-        else return exitError("Illegal input type");
+        else return exitError(line, "Illegal input type");
     }
     argsVec[0] = builder.CreateGlobalStringPtr(format);
     return builder.CreateCall(generator->scanf, argsVec);
@@ -425,7 +428,7 @@ llvm::Value* PrintNode::codeGen()
             else if(val->getType()->isIntegerTy(1)) format += "%d";
             else if(val->getType()->isIntegerTy(8)) format += "%c";
             else if(val->getType()->isPointerTy()) format += "%s";
-            else return exitError("Illegal output type");
+            else return exitError(line, "Illegal output type");
         }
         else format += *((*args)[i].first.str);
     }
@@ -442,11 +445,11 @@ llvm::Value* AssignStmtNode::codeGen()
     if(ty->isArrayTy())
     {
         if(lhs->index == nullptr)
-            return exitError("Array " + lhs->name + " can't be assigned");
+            return exitError(line, "Array " + lhs->name + " can't be assigned");
         else
             ty = ty->getArrayElementType();
     }
-    r = tryCast(r, ty);
+    r = tryCast(r, ty, line);
     return builder.CreateStore(r, l);
 }
 
@@ -480,16 +483,12 @@ llvm::Value* CompoundStmtNode::codeGen()
     if(stmtList != nullptr)
     for(int i = 0; i < stmtList->size(); i++)
     {
-        (*stmtList)[i]->codeGen();
-        if(i + 1 < stmtList->size())
+        if(generator->brSet > 0)
         {
-            if((*stmtList)[i]->getClass() == "BreakNode")
-                return exitError("Illegal statements after 'break'");
-            else if((*stmtList)[i]->getClass() == "ReturnNode")
-                return exitError("Illegal statements after 'return'");
-            else if((*stmtList)[i]->getClass() == "ContinueNode")
-                return exitError("Illegal statements after 'continue'");
+            std::string str = generator->brSet == 1 ? "return" : generator->brSet == 2 ? "break" : "continue";
+            return exitError((*stmtList)[i]->line, "Illegal statements after '" + str + "'");
         }
+        (*stmtList)[i]->codeGen();
     }
     generator->symStack->remove();
     return nullptr;
@@ -521,7 +520,7 @@ llvm::Value* WhileStmtNode::codeGen()
 llvm::Value* BreakNode::codeGen()
 {
     if(generator->loopStack.empty())
-        return exitError("Invalid Break");
+        return exitError(line, "Invalid Break");
     generator->brSet = 2;
     return builder.CreateBr(generator->loopStack.top().second);
 }
@@ -529,7 +528,7 @@ llvm::Value* BreakNode::codeGen()
 llvm::Value* ContinueNode::codeGen()
 {
     if(generator->loopStack.empty())
-        return exitError("Invalid Continue");
+        return exitError(line, "Invalid Continue");
     generator->brSet = 3;
     return builder.CreateBr(generator->loopStack.top().first);
 }
