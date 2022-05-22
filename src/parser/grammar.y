@@ -153,7 +153,7 @@ ParamList: ParamList COMMA Expr {$$ = $1; $$->push_back($3);}
     | Expr {$$ = new std::vector<ExprNode*>; $$->push_back($1);}
     ;
 
-ConstDec: TYPE IdenDef ASSIGNOP ConstExpr SEMI {$$ = new ConstDeclNode(line, $2, $4, $1);}
+ConstDec: CONST TYPE IdenDef ASSIGNOP ConstExpr SEMI {$$ = new ConstDeclNode(line, $3, $5, $2);}
     ;
 
 ConstExpr: IntExpr {$$ = $1;}

@@ -460,7 +460,7 @@ llvm::Value* IfStmtNode::codeGen()
     llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "then", func);
     llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "else", func);
     llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(context, "merge", func);
-    llvm::Value* br = builder.CreateCondBr(condV, thenBB, elseBB);
+    llvm::Value* br = builder.CreateCondBr(tryCast(condV, llvm::Type::getInt1Ty(context), condition->line), thenBB, elseBB);
     builder.SetInsertPoint(thenBB);
     thenStmt->codeGen();
     if(!generator->brSet)
@@ -504,7 +504,7 @@ llvm::Value* WhileStmtNode::codeGen()
     builder.CreateBr(checkBB);
     builder.SetInsertPoint(checkBB);
     llvm::Value* condV = condition->codeGen();
-    llvm::Value* br = builder.CreateCondBr(condV, loopBB, endBB);
+    llvm::Value* br = builder.CreateCondBr(tryCast(condV, llvm::Type::getInt1Ty(context), condition->line), loopBB, endBB);
     checkBB = builder.GetInsertBlock();
     builder.SetInsertPoint(loopBB);
     if(staments) staments->codeGen();

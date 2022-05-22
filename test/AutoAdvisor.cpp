@@ -1,16 +1,16 @@
-#include <cstdio>
-#define MAX_STRING_LENGTH 110
-#define MAX_COURSE_NUM 110
+const int MAX_STRING_LENGTH = 250;
+const int MAX_COURSE_NUM = 110;
 int courseCount;
-char courseName[MAX_STRING_LENGTH * MAX_COURSE_NUM];
-int credit[MAX_COURSE_NUM];
-char depandence[MAX_STRING_LENGTH * MAX_COURSE_NUM];
-int grade[MAX_COURSE_NUM];
-char recommendation[MAX_STRING_LENGTH * MAX_COURSE_NUM];
+char courseName[27500];
+int credit[110];
+char depandence[27500];
+int grade[110];
+char recommendation[27500];
 int recommendationCount;
+char name[110];
 
 // return true if there exists a course named 'name'
-bool find(char name[MAX_COURSE_NUM]) {
+bool find() {
     int i, j, k;
     i = 0;
     bool b;
@@ -19,7 +19,7 @@ bool find(char name[MAX_COURSE_NUM]) {
             j = i * MAX_STRING_LENGTH;
             k = 0;
             b = true;
-            while(courseName[j] != 0 || name[k] !=0) {
+            while(courseName[j] != 0 || name[k] != 0) {
                 if(courseName[j] != name[k]) {
                     b = false;
                     break;
@@ -38,20 +38,20 @@ bool find(char name[MAX_COURSE_NUM]) {
 
 // judge if the course satisfy depandence
 bool judge(int index) {
-    bool res = false, partialRes = true;
-    int i = index * MAX_STRING_LENGTH;
-    char s[MAX_STRING_LENGTH];
-    int si;
+    bool res, partialRes;
+    res = false; partialRes = true;
+    int i, si;
+    i = index * MAX_STRING_LENGTH;
     si = 0;
     if(depandence[i] == 0) {
         return true;
     }
     while(1) {
-        if(depandence[i] == 0 | depandence[i] == ';') {
-            s[si] = 0;
-            partialRes = partialRes & find(s);
+        if(depandence[i] == 0 || depandence[i] == ';') {
+            name[si] = 0;
+            partialRes = partialRes && find();
             si = 0;
-            res = res | partialRes;
+            res = res || partialRes;
             partialRes = true;
             if(res) {
                 return true;
@@ -60,11 +60,11 @@ bool judge(int index) {
                 break;
             }
         } else if(depandence[i] == ',') {
-            s[si] = 0;
-            partialRes = partialRes & find(s);
+            name[si] = 0;
+            partialRes = partialRes && find();
             si = 0;
         } else {
-            s[si] = depandence[i];
+            name[si] = depandence[i];
             si = si + 1;
         }
 
@@ -74,7 +74,7 @@ bool judge(int index) {
 }
 
 int main() {
-    char s[MAX_STRING_LENGTH], ch;
+    char ch;
     int i;
 
     // handle input
@@ -82,7 +82,7 @@ int main() {
         // input course name
         i = MAX_STRING_LENGTH * courseCount;
         while(1) {
-            ch = getchar();
+            scan(ch);
             if(ch == '|' || ch == '\n') {
                 break;
             }
@@ -97,14 +97,14 @@ int main() {
         }
 
         // input credit
-        ch = getchar();
+        scan(ch);
         credit[courseCount] = ch - '0';
-        ch = getchar();
+        scan(ch);
 
         // input depandence
         i = MAX_STRING_LENGTH * courseCount;
         while(1) {
-            ch = getchar();
+            scan(ch);
             if(ch == '|' || ch == '\n') {
                 break;
             }
@@ -115,23 +115,24 @@ int main() {
 
         // input grade
         // A = 4, B = 3, C = 2, D = 1, F = 0, none = -1
-        ch = getchar();
+        scan(ch);
         if(ch >= 'A' && ch <= 'F') {
             grade[courseCount] = 4 - (ch - 'A');
             if(ch == 'F') {
                 grade[courseCount] = 0;
             }
-            ch = getchar();
+            scan(ch);
         } else {
             grade[courseCount] = -1;
         }
-        courseCount += 1;
+        courseCount = courseCount + 1;
     }
 
-    int hoursAttempted = 0;
-    int hoursCompleted = 0;
-    int creditsRemaining = 0;
-    double gpa = 0;
+    int hoursAttempted, hoursCompleted, creditsRemaining;
+    hoursAttempted = 0;
+    hoursCompleted = 0;
+    creditsRemaining = 0;
+    double gpa; gpa = 0;
 
     i = 0;
     while(i < courseCount) {
@@ -156,20 +157,30 @@ int main() {
         gpa = gpa / hoursAttempted;
     }
     
-    printf("GPA: %.1lf\n", gpa);
-    printf("Hours Attempted: %d\n", hoursAttempted);
-    printf("Hours Completed: %d\n", hoursCompleted);
-    printf("Credits Remaining: %d\n", creditsRemaining);
-    printf("\nPossible Courses to Take Next\n");
+    int int_gpa;
+    int_gpa = (gpa + 0.05) * 10;
+    print("GPA: ", int_gpa / 10, '.', int_gpa % 10, "\n");
+    print("Hours Attempted: ", hoursAttempted, "\n");
+    print("Hours Completed: ", hoursCompleted, '\n');
+    print("Credits Remaining: ", creditsRemaining, '\n');
+    print("\nPossible Courses to Take Next\n");
     if(recommendationCount > 0) {
         i = 0;
         while(i < recommendationCount) {
-            printf("  %s\n", &courseName[recommendation[i] * MAX_STRING_LENGTH]);
+            int j;
+            print("  ");
+            j = recommendation[i] * MAX_STRING_LENGTH;
+            while(courseName[j] > 0)
+            {
+                print(courseName[j]);
+                j = j + 1;
+            }
+            print("\n");
             i = i + 1;
         }
     } else {
         if(creditsRemaining == 0) {
-            printf("  None - Congratulations!\n");
+            print("  None - Congratulations!\n");
         }
     }
     return 0;
