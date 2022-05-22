@@ -83,7 +83,7 @@ int main() {
         i = MAX_STRING_LENGTH * courseCount;
         while(1) {
             scan(ch);
-            if(ch == '|' || ch == '\n') {
+            if(ch == '|' || ch == '\n' || ch == '\r' || ch < 0) {
                 break;
             }
             courseName[i] = ch;
@@ -92,7 +92,7 @@ int main() {
         courseName[i] = 0;
 
         // end input
-        if(ch == '\n') {
+        if(ch != '|') {
             break;
         }
 
@@ -121,11 +121,13 @@ int main() {
             if(ch == 'F') {
                 grade[courseCount] = 0;
             }
-            scan(ch);
+            scan(ch);  // may ends with "\r\n"
         } else {
             grade[courseCount] = -1;
         }
         courseCount = courseCount + 1;
+        if(ch == '\r') scan(ch);
+        else if(ch != '\n') break; // 新的tester没有空行结尾...
     }
 
     int hoursAttempted, hoursCompleted, creditsRemaining;
