@@ -6,15 +6,6 @@
     extern int line;
     int str2ch(std::string str);
     std::string strText() {std::string s = yytext; return s;}
-    // int yycolumn=1;
-    // #define YY_USER_ACTION \
-    //     yylloc.first_line=yylineno;\
-    //     yylloc.last_line=yylineno;\
-    //     yylloc.first_column=yycolumn;\
-    //     yylloc.last_column=yylloc.first_column+yyleng-1;\
-    //     yycolumn+=yyleng;
-    // extern int mistakeRecord[4096];
-    // extern int mistake;
 %}
 COMMENT \/\/[^\n]*
 digits [0-9]+

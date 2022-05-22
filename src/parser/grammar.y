@@ -3,8 +3,6 @@
     #include "../ast/ast.h"
     int yylex(void);
     int line = 1;
-    // int mistakeRecord[4096]={0};
-    // int mistake = 0;
     extern Node *Root;
     void yyerror(char* s) {fprintf(stderr, "%s\n", s);}
 %}
