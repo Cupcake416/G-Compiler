@@ -1,24 +1,490 @@
-digraph G {
-	node [shape=record,height=.3];
-		node0[label = "<f0> |<f1> G|<f2> "];
-		node1[label = "<f0> |<f1> E|<f2> "];
-		node2[label = "<f0> |<f1> B|<f2> "];
-		node3[label = "<f0> |<f1> F|<f2> "];
-		node4[label = "<f0> |<f1> R|<f2> "];
-		node5[label = "<f0> |<f1> H|<f2> "];
-		node6[label = "<f0> |<f1> Y|<f2> "];
-		node7[label = "<f0> |<f1> A|<f2> "];
-		node8[label = "<f0> |<f1> C|<f2> "];
-		node0:f2 -> node4:f1;
-		node0:f0 -> node1:f1;
-		node1:f0 -> node2:f1;
-		node1:f2 -> node3:f1;
-		node2:f2 -> node8:f1;
-		node2:f0 -> node7:f1;
-		node4:f2 -> node6:f1;
-		node4:f0 -> node5:f1;	
-	node [color=red,height=.1];
-		a->b;
-		c->d;
- 
+digraph G{
+n0 [label=CompoundStmtNode]
+n1 [label=VariableDeclNode]
+n0->n1
+n2 [label=Integer]
+n1->n2
+n3 [label=Identifier]
+n1->n3
+n4 [label="a"]
+n3->n4
+n5 [label=FuncDecNode]
+n0->n5
+n6 [label=Void]
+n5->n6
+n7 [label=sort]
+n5->n7
+n8 [label=Identifier]
+n5->n8
+n9 [label="l"]
+n8->n9
+n10 [label=Identifier]
+n5->n10
+n11 [label="r"]
+n10->n11
+n12 [label=CompoundStmtNode]
+n5->n12
+n13 [label=IfStmtNode]
+n12->n13
+n14 [label=ReturnNode]
+n13->n14
+n15 [label=BinaryExprNode]
+n13->n15
+n16 [label=Identifier]
+n15->n16
+n17 [label="l"]
+n16->n17
+n18 [label=">="]
+n15->n18
+n19 [label=Identifier]
+n15->n19
+n20 [label="r"]
+n19->n20
+n21 [label=VariableDeclNode]
+n12->n21
+n22 [label=Integer]
+n21->n22
+n23 [label=Identifier]
+n21->n23
+n24 [label="mid"]
+n23->n24
+n25 [label=Identifier]
+n21->n25
+n26 [label="i"]
+n25->n26
+n27 [label=Identifier]
+n21->n27
+n28 [label="j"]
+n27->n28
+n29 [label=AssignStmtNode]
+n12->n29
+n30 [label=Identifier]
+n29->n30
+n31 [label="mid"]
+n30->n31
+n32 [label=Identifier]
+n29->n32
+n33 [label="a[]"]
+n32->n33
+n34 [label=BinaryExprNode]
+n32->n34
+n35 [label=BinaryExprNode]
+n34->n35
+n36 [label=Identifier]
+n35->n36
+n37 [label="l"]
+n36->n37
+n38 [label="+"]
+n35->n38
+n39 [label=Identifier]
+n35->n39
+n40 [label="r"]
+n39->n40
+n41 [label="/"]
+n34->n41
+n42 [label=IntegerExprNode]
+n34->n42
+n43 [label=2]
+n42->n43
+n44 [label=AssignStmtNode]
+n12->n44
+n45 [label=Identifier]
+n44->n45
+n46 [label="i"]
+n45->n46
+n47 [label=Identifier]
+n44->n47
+n48 [label="l"]
+n47->n48
+n49 [label=AssignStmtNode]
+n12->n49
+n50 [label=Identifier]
+n49->n50
+n51 [label="j"]
+n50->n51
+n52 [label=Identifier]
+n49->n52
+n53 [label="r"]
+n52->n53
+n54 [label=WhileStmtNode]
+n12->n54
+n55 [label=BinaryExprNode]
+n54->n55
+n56 [label=Identifier]
+n55->n56
+n57 [label="i"]
+n56->n57
+n58 [label="<="]
+n55->n58
+n59 [label=Identifier]
+n55->n59
+n60 [label="j"]
+n59->n60
+n61 [label=CompoundStmtNode]
+n54->n61
+n62 [label=WhileStmtNode]
+n61->n62
+n63 [label=BinaryExprNode]
+n62->n63
+n64 [label=Identifier]
+n63->n64
+n65 [label="a[]"]
+n64->n65
+n66 [label=Identifier]
+n64->n66
+n67 [label="i"]
+n66->n67
+n68 [label="<"]
+n63->n68
+n69 [label=Identifier]
+n63->n69
+n70 [label="mid"]
+n69->n70
+n71 [label=AssignStmtNode]
+n62->n71
+n72 [label=Identifier]
+n71->n72
+n73 [label="i"]
+n72->n73
+n74 [label=BinaryExprNode]
+n71->n74
+n75 [label=Identifier]
+n74->n75
+n76 [label="i"]
+n75->n76
+n77 [label="+"]
+n74->n77
+n78 [label=IntegerExprNode]
+n74->n78
+n79 [label=1]
+n78->n79
+n80 [label=WhileStmtNode]
+n61->n80
+n81 [label=BinaryExprNode]
+n80->n81
+n82 [label=Identifier]
+n81->n82
+n83 [label="a[]"]
+n82->n83
+n84 [label=Identifier]
+n82->n84
+n85 [label="j"]
+n84->n85
+n86 [label=">"]
+n81->n86
+n87 [label=Identifier]
+n81->n87
+n88 [label="mid"]
+n87->n88
+n89 [label=AssignStmtNode]
+n80->n89
+n90 [label=Identifier]
+n89->n90
+n91 [label="j"]
+n90->n91
+n92 [label=BinaryExprNode]
+n89->n92
+n93 [label=Identifier]
+n92->n93
+n94 [label="j"]
+n93->n94
+n95 [label="-"]
+n92->n95
+n96 [label=IntegerExprNode]
+n92->n96
+n97 [label=1]
+n96->n97
+n98 [label=IfStmtNode]
+n61->n98
+n99 [label=CompoundStmtNode]
+n98->n99
+n100 [label=VariableDeclNode]
+n99->n100
+n101 [label=Integer]
+n100->n101
+n102 [label=Identifier]
+n100->n102
+n103 [label="tmp"]
+n102->n103
+n104 [label=AssignStmtNode]
+n99->n104
+n105 [label=Identifier]
+n104->n105
+n106 [label="tmp"]
+n105->n106
+n107 [label=Identifier]
+n104->n107
+n108 [label="a[]"]
+n107->n108
+n109 [label=Identifier]
+n107->n109
+n110 [label="i"]
+n109->n110
+n111 [label=AssignStmtNode]
+n99->n111
+n112 [label=Identifier]
+n111->n112
+n113 [label="a[]"]
+n112->n113
+n114 [label=Identifier]
+n112->n114
+n115 [label="i"]
+n114->n115
+n116 [label=Identifier]
+n111->n116
+n117 [label="a[]"]
+n116->n117
+n118 [label=Identifier]
+n116->n118
+n119 [label="j"]
+n118->n119
+n120 [label=AssignStmtNode]
+n99->n120
+n121 [label=Identifier]
+n120->n121
+n122 [label="a[]"]
+n121->n122
+n123 [label=Identifier]
+n121->n123
+n124 [label="j"]
+n123->n124
+n125 [label=Identifier]
+n120->n125
+n126 [label="tmp"]
+n125->n126
+n127 [label=AssignStmtNode]
+n99->n127
+n128 [label=Identifier]
+n127->n128
+n129 [label="i"]
+n128->n129
+n130 [label=BinaryExprNode]
+n127->n130
+n131 [label=Identifier]
+n130->n131
+n132 [label="i"]
+n131->n132
+n133 [label="+"]
+n130->n133
+n134 [label=IntegerExprNode]
+n130->n134
+n135 [label=1]
+n134->n135
+n136 [label=AssignStmtNode]
+n99->n136
+n137 [label=Identifier]
+n136->n137
+n138 [label="j"]
+n137->n138
+n139 [label=BinaryExprNode]
+n136->n139
+n140 [label=Identifier]
+n139->n140
+n141 [label="j"]
+n140->n141
+n142 [label="-"]
+n139->n142
+n143 [label=IntegerExprNode]
+n139->n143
+n144 [label=1]
+n143->n144
+n145 [label=BinaryExprNode]
+n98->n145
+n146 [label=Identifier]
+n145->n146
+n147 [label="i"]
+n146->n147
+n148 [label="<="]
+n145->n148
+n149 [label=Identifier]
+n145->n149
+n150 [label="j"]
+n149->n150
+n151 [label=CallExprNode]
+n12->n151
+n152 [label=sort]
+n151->n152
+n153 [label=Identifier]
+n151->n153
+n154 [label="l"]
+n153->n154
+n155 [label=Identifier]
+n151->n155
+n156 [label="j"]
+n155->n156
+n157 [label=CallExprNode]
+n12->n157
+n158 [label=sort]
+n157->n158
+n159 [label=Identifier]
+n157->n159
+n160 [label="i"]
+n159->n160
+n161 [label=Identifier]
+n157->n161
+n162 [label="r"]
+n161->n162
+n163 [label=FuncDecNode]
+n0->n163
+n164 [label=Integer]
+n163->n164
+n165 [label=main]
+n163->n165
+n166 [label=CompoundStmtNode]
+n163->n166
+n167 [label=VariableDeclNode]
+n166->n167
+n168 [label=Integer]
+n167->n168
+n169 [label=Identifier]
+n167->n169
+n170 [label="n"]
+n169->n170
+n171 [label=Identifier]
+n167->n171
+n172 [label="i"]
+n171->n172
+n173 [label=ScanNode]
+n166->n173
+n174 [label=Identifier]
+n173->n174
+n175 [label="n"]
+n174->n175
+n176 [label=AssignStmtNode]
+n166->n176
+n177 [label=Identifier]
+n176->n177
+n178 [label="i"]
+n177->n178
+n179 [label=IntegerExprNode]
+n176->n179
+n180 [label=0]
+n179->n180
+n181 [label=WhileStmtNode]
+n166->n181
+n182 [label=BinaryExprNode]
+n181->n182
+n183 [label=Identifier]
+n182->n183
+n184 [label="i"]
+n183->n184
+n185 [label="<"]
+n182->n185
+n186 [label=Identifier]
+n182->n186
+n187 [label="n"]
+n186->n187
+n188 [label=CompoundStmtNode]
+n181->n188
+n189 [label=ScanNode]
+n188->n189
+n190 [label=Identifier]
+n189->n190
+n191 [label="a[]"]
+n190->n191
+n192 [label=Identifier]
+n190->n192
+n193 [label="i"]
+n192->n193
+n194 [label=AssignStmtNode]
+n188->n194
+n195 [label=Identifier]
+n194->n195
+n196 [label="i"]
+n195->n196
+n197 [label=BinaryExprNode]
+n194->n197
+n198 [label=Identifier]
+n197->n198
+n199 [label="i"]
+n198->n199
+n200 [label="+"]
+n197->n200
+n201 [label=IntegerExprNode]
+n197->n201
+n202 [label=1]
+n201->n202
+n203 [label=CallExprNode]
+n166->n203
+n204 [label=sort]
+n203->n204
+n205 [label=IntegerExprNode]
+n203->n205
+n206 [label=0]
+n205->n206
+n207 [label=BinaryExprNode]
+n203->n207
+n208 [label=Identifier]
+n207->n208
+n209 [label="n"]
+n208->n209
+n210 [label="-"]
+n207->n210
+n211 [label=IntegerExprNode]
+n207->n211
+n212 [label=1]
+n211->n212
+n213 [label=AssignStmtNode]
+n166->n213
+n214 [label=Identifier]
+n213->n214
+n215 [label="i"]
+n214->n215
+n216 [label=IntegerExprNode]
+n213->n216
+n217 [label=0]
+n216->n217
+n218 [label=WhileStmtNode]
+n166->n218
+n219 [label=BinaryExprNode]
+n218->n219
+n220 [label=Identifier]
+n219->n220
+n221 [label="i"]
+n220->n221
+n222 [label="<"]
+n219->n222
+n223 [label=Identifier]
+n219->n223
+n224 [label="n"]
+n223->n224
+n225 [label=CompoundStmtNode]
+n218->n225
+n226 [label=PrintNode]
+n225->n226
+n227 [label=Identifier]
+n226->n227
+n228 [label="a[]"]
+n227->n228
+n229 [label=Identifier]
+n227->n229
+n230 [label="i"]
+n229->n230
+n231 [label="
+"]
+n226->n231
+n232 [label=AssignStmtNode]
+n225->n232
+n233 [label=Identifier]
+n232->n233
+n234 [label="i"]
+n233->n234
+n235 [label=BinaryExprNode]
+n232->n235
+n236 [label=Identifier]
+n235->n236
+n237 [label="i"]
+n236->n237
+n238 [label="+"]
+n235->n238
+n239 [label=IntegerExprNode]
+n235->n239
+n240 [label=1]
+n239->n240
+n241 [label=ReturnNode]
+n166->n241
+n242 [label=IntegerExprNode]
+n241->n242
+n243 [label=0]
+n242->n243
 }

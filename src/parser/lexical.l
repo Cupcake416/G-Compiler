@@ -26,7 +26,7 @@ REAL -?({digits}\.{digits})
 BOOL "true"|"false"
 TYPE "int"|"double"|"bool"|"char"
 
-ID [_a-zA-Z][_0-9a-zA-Z]*
+ID_ [_a-zA-Z][_0-9a-zA-Z]*
 
 OP_0 "*"|"/"
 OP_1 "%"
@@ -36,12 +36,12 @@ OP_4 "&&"
 OP_5 "||"
 
 
-LP \(
+LP_ \(
 RP \)
 LB \[
 RB \]
-LC \{
-RC \}
+LC_ \{
+RC_ \}
 
 CONST const
 RETURN return
@@ -111,12 +111,12 @@ BLANK \t|" "|\r|\n
 {OP_4}   {yylval.op = OP_AND; return OP_4;}
 {OP_5}   {yylval.op = OP_OR; return OP_5;}
 
-{LP}   {return LP;}
+{LP_}   {return LP_;}
 {RP}   {return RP;}
 {LB}   {return LB;}
 {RB}   {return RB;}
-{LC}   {return LC;}
-{RC}   {return RC;}
+{LC_}   {return LC_;}
+{RC_}   {return RC_;}
 
 {CONST}   {return CONST;}
 {IF}   {return IF;}
@@ -133,7 +133,7 @@ BLANK \t|" "|\r|\n
 {COMMA}   {return COMMA;}
 {ASSIGNOP}   {return ASSIGNOP;}
 
-{ID}  {yylval.id = new std::string(strText()); return ID;}
+{ID_}  {yylval.id = new std::string(strText()); return ID_;}
 
 {BLANK}  {if(strText() == "\n") line++;}
 {COMMENT} {;}

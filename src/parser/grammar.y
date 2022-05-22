@@ -51,14 +51,14 @@
 %token <boolVal> BOOL
 %token <strVal> STRING
 %token <ty> TYPE
-%token <id> ID
+%token <id> ID_
 %token <op> OP_0
 %token <op> OP_1
 %token <op> OP_2
 %token <op> OP_3
 %token <op> OP_4
 %token <op> OP_5
-%token LP RP LB RB LC RC RETURN CONST IF ELSE WHILE BREAK CONTINUE VOID SEMI COMMA ASSIGNOP SCAN PRINT
+%token LP_ RP LB RB LC_ RC_ RETURN CONST IF ELSE WHILE BREAK CONTINUE VOID SEMI COMMA ASSIGNOP SCAN PRINT
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -70,7 +70,7 @@
 %left OP_2
 %left OP_1
 %left OP_0
-%left LP RP LB RB
+%left LP_ RP LB RB
 
 %type <expr> Expr
 %type <stmt> Stmt
@@ -110,10 +110,10 @@ MainList: MainList VarDec {$$ = $1; $$->stmtList->push_back($2);}
     | ConstDec {$$ = new CompoundStmtNode(line, new std::vector<StmtNode*>); $$->stmtList->push_back($1);}
     ;
 
-ScanStmt: SCAN LP ScanList RP SEMI {$$ = new ScanNode(line, $3);}
+ScanStmt: SCAN LP_ ScanList RP SEMI {$$ = new ScanNode(line, $3);}
     ;
 
-PrintStmt: PRINT LP PrintList RP SEMI {$$ = new PrintNode(line, $3);}
+PrintStmt: PRINT LP_ PrintList RP SEMI {$$ = new PrintNode(line, $3);}
     ;
 
 VarDec: TYPE VarDecList SEMI {$$ = new VariableDeclNode(line, $2, $1);}
@@ -122,19 +122,19 @@ VarDec: TYPE VarDecList SEMI {$$ = new VariableDeclNode(line, $2, $1);}
 VarDecList: VarDecList COMMA IdenDef {$$ = $1; $$->push_back($3);}
     | IdenDef {$$ = new std::vector<Identifier*>; $$->push_back($1);}
 
-Iden: ID {$$ = new Identifier(line, *$1);}
-    | ID LB Expr RB {$$ = new Identifier(line, *$1, $3);}
+Iden: ID_ {$$ = new Identifier(line, *$1);}
+    | ID_ LB Expr RB {$$ = new Identifier(line, *$1, $3);}
     ;
 
-IdenDef: ID {$$ = new Identifier(line, *$1);}
-    | ID LB INT RB {$$ = new Identifier(line, *$1, nullptr, $3);}
+IdenDef: ID_ {$$ = new Identifier(line, *$1);}
+    | ID_ LB INT RB {$$ = new Identifier(line, *$1, nullptr, $3);}
     ;
 
 Expr: Iden {$$ = $1;}
     | ConstExpr {$$ = $1;}
     | BinExpr {$$ = $1;}
     | CallExpr {$$ = $1;}
-    | LP Expr RP {$$ = $2;}
+    | LP_ Expr RP {$$ = $2;}
     ;
 
 BinExpr: Expr OP_0 Expr {$$ = new BinaryExprNode(line, $2, $1, $3);}
@@ -145,8 +145,8 @@ BinExpr: Expr OP_0 Expr {$$ = new BinaryExprNode(line, $2, $1, $3);}
     | Expr OP_5 Expr {$$ = new BinaryExprNode(line, $2, $1, $3);}
     ;
 
-CallExpr: ID LP ParamList RP {$$ = new CallExprNode(line, *$1, $3);}
-    | ID LP RP {$$ = new CallExprNode(line, *$1, nullptr);}
+CallExpr: ID_ LP_ ParamList RP {$$ = new CallExprNode(line, *$1, $3);}
+    | ID_ LP_ RP {$$ = new CallExprNode(line, *$1, nullptr);}
     ;
 
 ParamList: ParamList COMMA Expr {$$ = $1; $$->push_back($3);}
@@ -174,18 +174,18 @@ CharExpr: CHAR {$$ = new CharExprNode(line, $1);}
 BoolExpr: BOOL {$$ = new BooleanExprNode(line, $1);}
     ;
 
-FunDec: TYPE ID LP ArgList RP Stmts {$$ = new FuncDecNode(line, *$2, FuncType((int)$1), $4, $6);}
-    | VOID ID LP ArgList RP Stmts {$$ = new FuncDecNode(line, *$2, FUNC_VOID, $4, $6);}
-    | TYPE ID LP RP Stmts {$$ = new FuncDecNode(line, *$2, FuncType((int)$1), nullptr, $5);}
-    | VOID ID LP RP Stmts {$$ = new FuncDecNode(line, *$2, FUNC_VOID, nullptr, $5);}
+FunDec: TYPE ID_ LP_ ArgList RP Stmts {$$ = new FuncDecNode(line, *$2, FuncType((int)$1), $4, $6);}
+    | VOID ID_ LP_ ArgList RP Stmts {$$ = new FuncDecNode(line, *$2, FUNC_VOID, $4, $6);}
+    | TYPE ID_ LP_ RP Stmts {$$ = new FuncDecNode(line, *$2, FuncType((int)$1), nullptr, $5);}
+    | VOID ID_ LP_ RP Stmts {$$ = new FuncDecNode(line, *$2, FUNC_VOID, nullptr, $5);}
     ;
 
 ArgList: ArgList COMMA TYPE IdenDef {$$ = $1; $$->push_back(std::make_pair($3, $4));}
     | TYPE IdenDef {$$ = new std::vector<std::pair<NodeType, Identifier*> >; $$->push_back(std::make_pair($1, $2));} 
     ;
 
-Stmts: LC StmtList RC {$$ = new CompoundStmtNode(line, $2);}
-    | LC RC {$$ = new CompoundStmtNode(line, nullptr);}
+Stmts: LC_ StmtList RC_ {$$ = new CompoundStmtNode(line, $2);}
+    | LC_ RC_ {$$ = new CompoundStmtNode(line, nullptr);}
     ;
 
 StmtList: StmtList Stmt {$$ = $1; $$->push_back($2);}
@@ -243,11 +243,11 @@ RetStmt: RETURN Expr SEMI {$$ = new ReturnNode(line, $2);}
     | RETURN SEMI {$$ = new ReturnNode(line, nullptr);}
     ;
 
-IfStmt: IF LP Expr RP Stmt ELSE Stmt {$$ = new IfStmtNode(line, $3, $5, $7);}
-    | IF LP Expr RP Stmt %prec NO_ELSE {$$ = new IfStmtNode(line, $3, $5, nullptr);}
+IfStmt: IF LP_ Expr RP Stmt ELSE Stmt {$$ = new IfStmtNode(line, $3, $5, $7);}
+    | IF LP_ Expr RP Stmt %prec NO_ELSE {$$ = new IfStmtNode(line, $3, $5, nullptr);}
     ;
 
-WhileStmt: WHILE LP Expr RP Stmt {$$ = new WhileStmtNode(line, $3, $5);}
+WhileStmt: WHILE LP_ Expr RP Stmt {$$ = new WhileStmtNode(line, $3, $5);}
     ;
 
 %%
